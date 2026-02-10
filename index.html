@@ -8,13 +8,19 @@
         body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #f0f2f5; }
         .container { max-width: 600px; width: 90%; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
         
-        /* User Profile Bar */
         #user-bar { margin-bottom: 20px; font-size: 0.9rem; color: #666; display: none; }
         .logout-link { color: #ff4d4d; cursor: pointer; text-decoration: underline; margin-left: 10px; border: none; background: none; font-size: 0.9rem; }
 
         .nav-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-        .page-button { padding: 25px 15px; background-color: #4a90e2; color: white; text-decoration: none; border-radius: 12px; font-weight: bold; transition: all 0.3s ease; }
+        .page-button { padding: 25px 15px; background-color: #4a90e2; color: white; text-decoration: none; border-radius: 12px; font-weight: bold; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; }
         .page-button:hover { background-color: #357abd; transform: translateY(-5px); }
+        
+        /* Special style for the login button to make it stand out */
+        #login-btn { background-color: #3ecf8e; }
+        #login-btn:hover { background-color: #36b37a; }
+
+        /* Hidden by default until we check login status */
+        .protected { display: none; }
     </style>
 </head>
 <body>
@@ -28,12 +34,15 @@
         <h1>Enfild Fantazi</h1>
         
         <div class="nav-container">
-            <a href="mojtim.html" class="page-button">Moj tim</a>
+            <a href="mojtim.html" id="btn-page1" class="page-button protected">Moj tim</a>
+            <a href="mojnalog.html" id="btn-page6" class="page-button protected">Moj nalog</a>
+            
             <a href="leaderboard.html" class="page-button">Leaderboard</a>
             <a href="igraci.html" class="page-button">Igraci</a>
             <a href="lineups.html" class="page-button">Lineups</a>
             <a href="pravila.html" class="page-button">Pravila</a>
-            <a href="mojnalog.html" class="page-button">Moj nalog</a>
+            
+            <a href="login.html" id="login-btn" class="page-button">Member Login</a>
         </div>
     </div>
 
@@ -43,25 +52,38 @@
         const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
         const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // This checks if a user is logged in and updates the UI
-        async function checkSession() {
+        async function updateUI() {
             const { data: { session } } = await mySupabase.auth.getSession();
+            
+            const page1 = document.getElementById('btn-page1');
+            const page6 = document.getElementById('btn-page6');
+            const loginBtn = document.getElementById('login-btn');
+            const userBar = document.getElementById('user-bar');
+
             if (session) {
-                const fullEmail = session.user.email; // e.g. "mike@friends.com"
-                const username = fullEmail.split('@')[0]; // takes just "mike"
-                
+                // USER IS LOGGED IN
+                const username = session.user.email.split('@')[0];
                 document.getElementById('username-display').innerText = username;
-                document.getElementById('user-bar').style.display = 'block';
+                
+                userBar.style.display = 'block';   // Show "Logged in as..."
+                page1.style.display = 'flex';     // Show Page 1
+                page6.style.display = 'flex';     // Show Page 6
+                loginBtn.style.display = 'none';  // Hide Login button
+            } else {
+                // USER IS LOGGED OUT
+                userBar.style.display = 'none';
+                page1.style.display = 'none';
+                page6.style.display = 'none';
+                loginBtn.style.display = 'flex';  // Show Login button
             }
         }
 
         async function logout() {
-            const { error } = await mySupabase.auth.signOut();
-            if (error) alert(error.message);
-            else window.location.reload(); // Refresh to hide the user bar
+            await mySupabase.auth.signOut();
+            window.location.reload();
         }
 
-        checkSession();
+        updateUI();
     </script>
 </body>
 </html>
