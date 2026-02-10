@@ -1,2 +1,16 @@
 const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
+
+brojevi na dresu:
+Sava Stefanovic #0
+Lazar Stanojevic #1
+Milos Verbic #2
+Aleksa Vasiljevic #3
+Uros Djordjevic #5
+Jovan Lukic #7
+Kosta Popovic #8
+Jan Spremo #11
+Viktor Vrbaski #12
+Filip Josic #16
+Relja Pantelic #23
+Ilija Blagic #30
