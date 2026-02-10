@@ -29,19 +29,23 @@
         async function handleAuth(type) {
             const user = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
-            const msg = document.getElementById('msg');
-            
-            // We turn the username into a fake email format
-            const fakeEmail = `${user}@enfild.com`;
+            const fakeEmail = `${user}@friends.com`;
 
             if (type === 'signup') {
                 const { error } = await mySupabase.auth.signUp({ email: fakeEmail, password: pass });
-                if (error) msg.innerText = error.message;
-                else alert("Account created! You can now log in.");
+                if (error) alert(error.message);
+                else alert("Account created!");
             } else {
-                const { error } = await mySupabase.auth.signInWithPassword({ email: fakeEmail, password: pass });
-                if (error) msg.innerText = "Invalid username or password.";
-                else window.location.href = "index.html";
+                const { data, error } = await mySupabase.auth.signInWithPassword({ email: fakeEmail, password: pass });
+                
+                if (error) {
+                    alert("Login failed!");
+                } else if (data.session) {
+                    // Give the browser a split second to save the cookie/token
+                    setTimeout(() => {
+                        window.location.href = "index.html";
+                    }, 500); 
+                }
             }
         }
     </script>

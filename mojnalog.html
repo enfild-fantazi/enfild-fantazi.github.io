@@ -7,17 +7,33 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
-        const SUPABASE_URL = 'https://your-project.supabase.co';
-        const SUPABASE_KEY = 'your-anon-key';
+        const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
         const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        async function protectPage() {
-            const { data: { session } } = await mySupabase.auth.getSession();
-            if (!session) {
+        // This is the most reliable way to check
+        mySupabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+                if (!session) {
+                    // No session found after checking, go to login
+                    window.location.href = "login.html";
+                } else {
+                    console.log("Welcome, " + session.user.email);
+                    // The user is logged in! Show the content.
+                    document.body.style.display = "block"; 
+                }
+            }
+            if (event === 'SIGNED_OUT') {
                 window.location.href = "login.html";
             }
-        }
-        protectPage();
+        });
     </script>
+
+    <style>
+        /* Hide the page body by default so users don't see 
+        private content for a split second before the redirect */
+        body { display: none; }
+    </style>
+
 </body>
 </html>
