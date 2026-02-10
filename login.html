@@ -29,7 +29,7 @@
         async function handleAuth(type) {
             const user = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
-            const fakeEmail = `${user}@friends.com`;
+            const fakeEmail = `${user}@enfild.com`;
 
             if (type === 'signup') {
                 const { error } = await mySupabase.auth.signUp({ email: fakeEmail, password: pass });
