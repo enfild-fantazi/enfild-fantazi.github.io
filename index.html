@@ -5,84 +5,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enfild Fantazi</title>
     <style>
-        /* General Styles */
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #f0f2f5; 
-            color: #333; 
-        }
+        body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #f0f2f5; }
+        .container { max-width: 600px; width: 90%; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
         
-        .container { 
-            max-width: 600px; 
-            width: 90%;
-            background: white; 
-            padding: 40px; 
-            border-radius: 20px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
-            text-align: center;
-        }
+        /* User Profile Bar */
+        #user-bar { margin-bottom: 20px; font-size: 0.9rem; color: #666; display: none; }
+        .logout-link { color: #ff4d4d; cursor: pointer; text-decoration: underline; margin-left: 10px; border: none; background: none; font-size: 0.9rem; }
 
-        h1 { margin-bottom: 30px; font-size: 2rem; color: #1a1a1a; }
-        
-        /* Navigation Grid */
-        .nav-container { 
-            display: grid; 
-            grid-template-columns: repeat(2, 1fr); /* 2 columns for a balanced look */
-            gap: 20px; 
-        }
-
-        .page-button { 
-            padding: 25px 15px; 
-            background-color: #4a90e2; 
-            color: white; 
-            text-decoration: none; 
-            border-radius: 12px; 
-            font-weight: bold; 
-            transition: all 0.3s ease;
-            font-size: 1.1rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Fun hover effect */
-        .page-button:hover { 
-            background-color: #357abd; 
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
-        }
-
-        /* Responsive: 1 column on very small phones */
-        @media (max-width: 400px) {
-            .nav-container { grid-template-columns: 1fr; }
-        }
+        .nav-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .page-button { padding: 25px 15px; background-color: #4a90e2; color: white; text-decoration: none; border-radius: 12px; font-weight: bold; transition: all 0.3s ease; }
+        .page-button:hover { background-color: #357abd; transform: translateY(-5px); }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>Home page</h1>
+        <div id="user-bar">
+            Logged in as: <span id="username-display"></span> 
+            <button class="logout-link" onclick="logout()">Logout</button>
+        </div>
+
+        <h1>🏠 Our Friend Hub</h1>
         
         <div class="nav-container">
-            <a href="mojtim.html" class="page-button"> Moj tim</a>
-            <a href="leaderboard.html" class="page-button"> Leaderboard</a>
-            <a href="igraci.html" class="page-button"> Igraci</a>
-            <a href="lineups.html" class="page-button"> Lineups</a>
-            <a href="pravila.html" class="page-button"> Pravila</a>
-            <a href="mojnalog.html" class="page-button"> Moj nalog</a>
+            <a href="mojtim.html" class="page-button">Moj tim</a>
+            <a href="leaderboard.html" class="page-button">Leaderboard</a>
+            <a href="igraci.html" class="page-button">Igraci</a>
+            <a href="lineups.html" class="page-button">Lineups</a>
+            <a href="pravila.html" class="page-button">Pravila</a>
+            <a href="mojnalog.html" class="page-button">Moj nalog</a>
         </div>
     </div>
 
-    <button onclick="mySupabase.auth.signOut().then(() => location.reload())" 
-            style="margin-top: 20px; background: #ff4d4d; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">
-        Logout
-    </button>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
+        const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // This checks if a user is logged in and updates the UI
+        async function checkSession() {
+            const { data: { session } } = await mySupabase.auth.getSession();
+            if (session) {
+                const fullEmail = session.user.email; // e.g. "mike@friends.com"
+                const username = fullEmail.split('@')[0]; // takes just "mike"
+                
+                document.getElementById('username-display').innerText = username;
+                document.getElementById('user-bar').style.display = 'block';
+            }
+        }
+
+        async function logout() {
+            const { error } = await mySupabase.auth.signOut();
+            if (error) alert(error.message);
+            else window.location.reload(); // Refresh to hide the user bar
+        }
+
+        checkSession();
+    </script>
 </body>
 </html>
