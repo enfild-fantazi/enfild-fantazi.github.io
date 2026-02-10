@@ -14,7 +14,17 @@
         .nav-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
         .page-button { padding: 25px 15px; background-color: #4a90e2; color: white; text-decoration: none; border-radius: 12px; font-weight: bold; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; }
         .page-button:hover { background-color: #357abd; transform: translateY(-5px); }
+
+        /* ANCHORING THE POSITIONS */
+        #btn-page1 { grid-area: 1 / 1; } /* Top Left */
+        #btn-page2 { grid-area: 1 / 2; } /* Top Right */
+        #btn-page3 { grid-area: 2 / 1; } /* Middle Left */
+        #btn-page4 { grid-area: 2 / 2; } /* Middle Right */
+        #btn-page5 { grid-area: 3 / 1; } /* Bottom Left */
         
+        /* Bottom Right Slot (Shared by Page 6 and Login) */
+        #btn-page6, #login-btn { grid-area: 3 / 2; }
+
         /* Special style for the login button to make it stand out */
         #login-btn { background-color: #3ecf8e; }
         #login-btn:hover { background-color: #36b37a; }
