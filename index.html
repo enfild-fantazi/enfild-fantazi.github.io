@@ -1,10 +1,65 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Enfild fantazi</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enfild Fantazi</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background-color: #f4f4f9; }
+        .container { background: white; padding: 20px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        input { display: block; margin: 10px auto; padding: 10px; width: 200px; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 10px 20px; background-color: #3ecf8e; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #36b37a; }
+    </style>
 </head>
 <body>
-    <h1>test</h1>
-    <p>jan spremo 999.99cr 999pt 999ast 999reb</p>
+
+    <div class="container">
+        <h1>test</h1>
+        <p>unesi tri igraca</p>
+        
+        <input type="text" id="p1" placeholder="Player #1">
+        <input type="text" id="p2" placeholder="Player #2">
+        <input type="text" id="p3" placeholder="Player #3">
+        
+        <button onclick="savePlayers()">Save to Database</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        // 2. Initialize Supabase (REPLACE THESE WITH YOUR ACTUAL KEYS)
+        const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // 3. The function that sends data
+        async function savePlayers() {
+            const p1 = document.getElementById('p1').value;
+            const p2 = document.getElementById('p2').value;
+            const p3 = document.getElementById('p3').value;
+
+            // Simple check to make sure they typed something
+            if (!p1 || !p2 || !p3) {
+                alert("Please fill in all three players!");
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('test') // Make sure this matches your table name exactly
+                .insert([{ col1: p1, col2: p2, col3: p3 }]);
+
+            if (error) {
+                console.error("Error:", error);
+                alert("It didn't work! Check the console.");
+            } else {
+                alert("List saved! Your friends' picks are now in the cloud.");
+                // Clear the inputs
+                document.getElementById('p1').value = '';
+                document.getElementById('p2').value = '';
+                document.getElementById('p3').value = '';
+            }
+        }
+    </script>
 </body>
 </html>
