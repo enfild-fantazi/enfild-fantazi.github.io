@@ -5,61 +5,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enfild Fantazi</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background-color: #f4f4f9; }
-        .container { background: white; padding: 20px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        input { display: block; margin: 10px auto; padding: 10px; width: 200px; border: 1px solid #ccc; border-radius: 5px; }
-        button { padding: 10px 20px; background-color: #3ecf8e; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #36b37a; }
+        /* General Styles */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5; 
+            color: #333; 
+        }
+        
+        .container { 
+            max-width: 600px; 
+            width: 90%;
+            background: white; 
+            padding: 40px; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+            text-align: center;
+        }
+
+        h1 { margin-bottom: 30px; font-size: 2rem; color: #1a1a1a; }
+        
+        /* Navigation Grid */
+        .nav-container { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); /* 2 columns for a balanced look */
+            gap: 20px; 
+        }
+
+        .page-button { 
+            padding: 25px 15px; 
+            background-color: #4a90e2; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 12px; 
+            font-weight: bold; 
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Fun hover effect */
+        .page-button:hover { 
+            background-color: #357abd; 
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+        }
+
+        /* Responsive: 1 column on very small phones */
+        @media (max-width: 400px) {
+            .nav-container { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>test</h1>
-        <p>unesi tri igraca</p>
+        <h1>Home page</h1>
         
-        <input type="text" id="p1" placeholder="Player #1">
-        <input type="text" id="p2" placeholder="Player #2">
-        <input type="text" id="p3" placeholder="Player #3">
-        
-        <button onclick="savePlayers()">Save to Database</button>
+        <div class="nav-container">
+            <a href="mojtim.html" class="page-button"> Moj tim</a>
+            <a href="leaderboard.html" class="page-button"> Leaderboard</a>
+            <a href="igraci.html" class="page-button"> Igraci</a>
+            <a href="lineups.html" class="page-button"> Lineups</a>
+            <a href="pravila.html" class="page-button"> Pravila</a>
+            <a href="mojnalog.html" class="page-button"> Moj nalog</a>
+        </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <script>
-        // 2. Initialize Supabase (REPLACE THESE WITH YOUR ACTUAL KEYS)
-        const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
-        const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        // 3. The function that sends data
-        async function savePlayers() {
-            const p1 = document.getElementById('p1').value;
-            const p2 = document.getElementById('p2').value;
-            const p3 = document.getElementById('p3').value;
-
-            // Simple check to make sure they typed something
-            if (!p1 || !p2 || !p3) {
-                alert("Please fill in all three players!");
-                return;
-            }
-
-            const { data, error } = await mySupabase
-                .from('test') // Make sure this matches your table name exactly
-                .insert([{ col1: p1, col2: p2, col3: p3 }]);
-
-            if (error) {
-                console.error("Error:", error);
-                alert("It didn't work! Check the console.");
-            } else {
-                alert("List saved! Your friends' picks are now in the cloud.");
-                // Clear the inputs
-                document.getElementById('p1').value = '';
-                document.getElementById('p2').value = '';
-                document.getElementById('p3').value = '';
-            }
-        }
-    </script>
 </body>
 </html>
