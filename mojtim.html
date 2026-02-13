@@ -2,67 +2,114 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enfild Fantazi</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* Your existing styles + Home Button style */
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; text-align: center; color: #333; }
         
+        /* Navigation */
         .home-btn { 
             position: absolute; top: 20px; left: 20px; 
-            padding: 10px 15px; background: #4a90e2; color: white; 
-            text-decoration: none; border-radius: 8px; font-weight: bold;
+            padding: 10px 15px; background: #e24a4a; color: white; 
+            text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 0.9rem;
         }
 
-        .sprite-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 30px; }
-        .player-card { background: white; padding: 15px; border-radius: 10px; width: 160px; position: relative; border: 2px solid #ddd; }
-        .remove-btn { position: absolute; top: -10px; right: -10px; background: #ff4d4d; color: white; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; border: none; font-weight: bold; }
-        .add-btn { padding: 20px; border: 2px dashed #bbb; border-radius: 10px; cursor: pointer; align-self: center; font-size: 2rem; color: #888; }
-        
-        #budget-display { font-size: 1.5rem; margin: 20px; font-weight: bold; background: white; display: inline-block; padding: 10px 20px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .save-btn { margin-top: 40px; padding: 15px 40px; background: #3ecf8e; color: white; border: none; border-radius: 8px; font-size: 1.1rem; cursor: pointer; font-weight: bold; }
-        .save-btn:hover { background: #36b37a; }
-        
-        select { width: 100%; margin-top: 10px; padding: 5px; }
-        .cost-tag { color: #666; font-size: 0.9rem; margin-top: 8px; }
+        /* Budget & Timer Header */
+        header { margin-top: 40px; }
+        #deadline-timer { color: #e74c3c; font-weight: bold; margin-bottom: 10px; font-size: 1.1rem; }
+        #budget-display { 
+            font-size: 1.5rem; margin: 20px; font-weight: bold; 
+            background: white; display: inline-block; padding: 15px 30px; 
+            border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+        }
+
+        /* Team Slots */
+        .sprite-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 30px; min-height: 250px; }
+        .player-card { 
+            background: white; padding: 20px; border-radius: 15px; 
+            width: 170px; position: relative; border: 2px solid #eee;
+            transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        .remove-btn { 
+            position: absolute; top: -10px; right: -10px; 
+            background: #ff4d4d; color: white; border-radius: 50%; 
+            width: 28px; height: 28px; cursor: pointer; border: none; font-weight: bold; 
+        }
+        .add-btn { 
+            width: 170px; height: 210px; border: 3px dashed #cbd5e0; 
+            border-radius: 15px; cursor: pointer; display: flex; 
+            align-items: center; justify-content: center; font-size: 3rem; color: #a0aec0;
+        }
+        .add-btn:hover { border-color: #4a90e2; color: #4a90e2; }
+
+        /* Inputs */
+        select { width: 100%; margin-top: 15px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; }
+        .cost-tag { margin-top: 15px; font-size: 0.95rem; line-height: 1.4; }
+        .cost-tag strong { color: #2d3748; display: block; margin-bottom: 4px; }
+
+        /* Save Button */
+        .save-btn { 
+            margin-top: 50px; padding: 18px 50px; background: #3ecf8e; 
+            color: white; border: none; border-radius: 10px; 
+            font-size: 1.2rem; cursor: pointer; font-weight: bold; 
+            transition: background 0.2s; box-shadow: 0 4px 14px rgba(62, 207, 142, 0.4);
+        }
+        .save-btn:disabled { background: #cbd5e0 !important; cursor: not-allowed; box-shadow: none; }
     </style>
 </head>
 <body>
 
-    <a href="index.html" class="home-btn">🏠 Home</a>
+    <a href="index.html" class="home-btn">Nazad</a>
 
-    <h1>Moj tim</h1>
-    
-    <div id="budget-display">
-        Remaining Credits: <span id="current-credits">0.0</span> / <span id="total-credits">0.0</span>
-    </div>
+    <header>
+        <h1>Moj tim</h1>
+        <div id="deadline-timer">Checking deadline...</div>
+        <div id="budget-display">
+            Remaining: <span id="current-credits">0.0</span> / <span id="total-credits">0.0</span>
+        </div>
+    </header>
 
-    <div class="sprite-container" id="team-slots"></div>
+    <div class="sprite-container" id="team-slots">
+        </div>
 
-    <button class="save-btn" onclick="saveTeam()">Save Team</button>
+    <button class="save-btn" id="main-save-btn" onclick="saveTeam()">Save Team</button>
 
     <script>
+        // --- CONFIGURATION ---
         const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
         const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // --- STATE ---
         let allPlayers = [];
         let userTeam = []; 
         let totalCredits = 70.0;
         let repPlayerId = null;
+        let DEADLINE = null;
 
+        // --- INITIALIZATION ---
         async function init() {
             const { data: { session } } = await mySupabase.auth.getSession();
             if (!session) { window.location.href = "login.html"; return; }
 
-            // 2. Sort players by cost (Reverse: Highest to Lowest)
+            // 1. Fetch Deadline from 'settings' table
+            const { data: deadlineData } = await mySupabase
+                .from('settings')
+                .select('value')
+                .eq('key', 'draft_deadline')
+                .single();
+            
+            if (deadlineData) DEADLINE = new Date(deadlineData.value);
+
+            // 2. Fetch all players, sorted by cost (highest first)
             const { data: players } = await mySupabase
                 .from('players')
                 .select('*')
-                .order('cost', { ascending: false }); // Database handles the sorting
-            
-            allPlayers = players;
+                .order('cost', { ascending: false });
+            allPlayers = players || [];
 
+            // 3. Fetch user's existing data
             const { data: userData } = await mySupabase
                 .from('user_teams')
                 .select('*')
@@ -70,19 +117,30 @@
                 .single();
 
             if (userData) {
-                totalCredits = userData.total_credits;
+                totalCredits = userData.total_credits || 70.0;
                 repPlayerId = userData.representative_player_id;
                 if (userData.player_ids) {
                     userTeam = userData.player_ids.map(id => allPlayers.find(p => p.id === id)).filter(p => p);
                 }
             }
 
+            // Start with 3 empty slots if no team exists
             if (userTeam.length === 0) userTeam = [null, null, null];
+
             renderTeam();
+            startTimer();
+        }
+
+        // --- LOGIC ---
+        function isLocked() {
+            if (!DEADLINE) return false;
+            return new Date() > DEADLINE;
         }
 
         function renderTeam() {
+            const locked = isLocked();
             const container = document.getElementById('team-slots');
+            const saveBtn = document.getElementById('main-save-btn');
             container.innerHTML = '';
             let spent = 0;
 
@@ -90,7 +148,8 @@
                 const card = document.createElement('div');
                 card.className = 'player-card';
 
-                if (userTeam.length > 3) {
+                // "X" button
+                if (userTeam.length > 3 && !locked) {
                     const xBtn = document.createElement('button');
                     xBtn.innerText = '×';
                     xBtn.className = 'remove-btn';
@@ -99,6 +158,7 @@
                 }
 
                 const select = document.createElement('select');
+                select.disabled = locked;
                 select.innerHTML = `<option value="">-- Select Player --</option>`;
                 
                 allPlayers.forEach(p => {
@@ -108,7 +168,7 @@
                     if (!isTaken && !isSelf) {
                         const opt = document.createElement('option');
                         opt.value = p.id;
-                        opt.text = `${p.name} (${p.cost.toFixed(1)})`; // Show 1 decimal
+                        opt.text = `${p.name} (${p.cost.toFixed(1)})`;
                         if (selectedPlayer && selectedPlayer.id === p.id) opt.selected = true;
                         select.appendChild(opt);
                     }
@@ -126,13 +186,14 @@
                     spent += selectedPlayer.cost;
                     const info = document.createElement('div');
                     info.className = 'cost-tag';
-                    info.innerHTML = `<strong>${selectedPlayer.name}</strong><br>Cost: ${selectedPlayer.cost.toFixed(1)}`;
+                    info.innerHTML = `<strong>${selectedPlayer.name}</strong>Cost: ${selectedPlayer.cost.toFixed(1)}`;
                     card.appendChild(info);
                 }
                 container.appendChild(card);
             });
 
-            if (userTeam.length < 5) {
+            // "+" button
+            if (userTeam.length < 5 && !locked) {
                 const addBtn = document.createElement('div');
                 addBtn.className = 'add-btn';
                 addBtn.innerText = '+';
@@ -140,34 +201,62 @@
                 container.appendChild(addBtn);
             }
 
-            // 3. Math Fix: Using .toFixed(1) to avoid 10.39999999
+            // Update UI Lock State
+            if (locked) {
+                saveBtn.disabled = true;
+                saveBtn.innerText = "Editovanje zatvoreno";
+            }
+
+            // Update Credits (Floating point fix)
             const remaining = (totalCredits - spent).toFixed(1);
             document.getElementById('total-credits').innerText = totalCredits.toFixed(1);
-            document.getElementById('current-credits').innerText = remaining;
-            document.getElementById('current-credits').style.color = (remaining < 0) ? '#ff4d4d' : '#333';
+            const creditSpan = document.getElementById('current-credits');
+            creditSpan.innerText = remaining;
+            creditSpan.style.color = (remaining < 0) ? '#e74c3c' : '#2ecc71';
+        }
+
+        function startTimer() {
+            function update() {
+                const timerDiv = document.getElementById('deadline-timer');
+                if (!DEADLINE) { timerDiv.innerText = ""; return; }
+                
+                const now = new Date();
+                const diff = DEADLINE - now;
+
+                if (diff <= 0) {
+                    timerDiv.innerText = "EDITOVANJE TIMOVA ZATVORENO";
+                    renderTeam(); // Re-render to trigger lock
+                } else {
+                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+                    timerDiv.innerText = `Deadline in: ${hours}h ${mins}m ${secs}s`;
+                }
+            }
+            setInterval(update, 1000);
+            update();
         }
 
         async function saveTeam() {
+            if (isLocked()) return alert("Deadline passed!");
+
             const spent = userTeam.reduce((sum, p) => sum + (p ? p.cost : 0), 0);
             const playerIds = userTeam.map(p => p ? p.id : null).filter(id => id !== null);
 
-            if (playerIds.length < 3) return alert("You need at least 3 players!");
-            if (spent > totalCredits + 0.01) return alert("You are over budget!"); // +0.01 buffer for float math
-            
+            if (playerIds.length < 3) return alert("Select at least 3 players!");
+            if (spent > totalCredits + 0.001) return alert("Over budget!");
+
             const { data: { session } } = await mySupabase.auth.getSession();
             
-            // 4. THE FIX: Using .upsert() replaces the old row if user_id matches
-            // IMPORTANT: Your user_teams table must have 'user_id' set as a PRIMARY KEY or UNIQUE constraint
+            // UPSERT: Overwrites the record for this user_id
             const { error } = await mySupabase
                 .from('user_teams')
                 .upsert({
                     user_id: session.user.id,
-                    player_ids: playerIds,
-                    total_credits: totalCredits, // Keeps their current credit limit
-                    representative_player_id: repPlayerId
-                }, { onConflict: 'user_id' }); // Ensures it overwrites based on the user ID
+                    player_ids: playerIds
+                }, { onConflict: 'user_id' });
 
-            if (error) alert("Team save failed: " + error.message);
+            if (error) alert("Error: " + error.message);
             else alert("Team successfully saved!");
         }
 
