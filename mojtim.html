@@ -5,24 +5,39 @@
     <title>Enfild Fantazi</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
+        /* Your existing styles + Home Button style */
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
+        
+        .home-btn { 
+            position: absolute; top: 20px; left: 20px; 
+            padding: 10px 15px; background: #4a90e2; color: white; 
+            text-decoration: none; border-radius: 8px; font-weight: bold;
+        }
+
         .sprite-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 30px; }
-        .player-card { background: white; padding: 15px; border-radius: 10px; width: 150px; position: relative; border: 2px solid #ddd; }
-        .remove-btn { position: absolute; top: -10px; right: -10px; background: red; color: white; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; border: none; }
-        .add-btn { padding: 20px; border: 2px dashed #bbb; border-radius: 10px; cursor: pointer; align-self: center; font-size: 2rem; }
-        #budget-display { font-size: 1.5rem; margin: 20px; font-weight: bold; }
-        .save-btn { margin-top: 40px; padding: 15px 30px; background: #3ecf8e; color: white; border: none; border-radius: 8px; font-size: 1.1rem; cursor: pointer; }
-        select { width: 100%; margin-top: 10px; }
-        .cost-tag { color: #666; font-size: 0.9rem; }
+        .player-card { background: white; padding: 15px; border-radius: 10px; width: 160px; position: relative; border: 2px solid #ddd; }
+        .remove-btn { position: absolute; top: -10px; right: -10px; background: #ff4d4d; color: white; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; border: none; font-weight: bold; }
+        .add-btn { padding: 20px; border: 2px dashed #bbb; border-radius: 10px; cursor: pointer; align-self: center; font-size: 2rem; color: #888; }
+        
+        #budget-display { font-size: 1.5rem; margin: 20px; font-weight: bold; background: white; display: inline-block; padding: 10px 20px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .save-btn { margin-top: 40px; padding: 15px 40px; background: #3ecf8e; color: white; border: none; border-radius: 8px; font-size: 1.1rem; cursor: pointer; font-weight: bold; }
+        .save-btn:hover { background: #36b37a; }
+        
+        select { width: 100%; margin-top: 10px; padding: 5px; }
+        .cost-tag { color: #666; font-size: 0.9rem; margin-top: 8px; }
     </style>
 </head>
 <body>
 
-    <h1>Moj tim</h1>
-    <div id="budget-display">Remaining Credits: <span id="current-credits">0</span> / <span id="total-credits">0</span></div>
+    <a href="index.html" class="home-btn">🏠 Home</a>
 
-    <div class="sprite-container" id="team-slots">
-        </div>
+    <h1>Moj tim</h1>
+    
+    <div id="budget-display">
+        Remaining Credits: <span id="current-credits">0.0</span> / <span id="total-credits">0.0</span>
+    </div>
+
+    <div class="sprite-container" id="team-slots"></div>
 
     <button class="save-btn" onclick="saveTeam()">Save Team</button>
 
@@ -32,36 +47,37 @@
         const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let allPlayers = [];
-        let userTeam = []; // Array of player objects
-        let totalCredits = 70;
+        let userTeam = []; 
+        let totalCredits = 70.0;
         let repPlayerId = null;
 
         async function init() {
-            // 1. Get current user
             const { data: { session } } = await mySupabase.auth.getSession();
             if (!session) { window.location.href = "login.html"; return; }
 
-            // 2. Load all players from DB
-            const { data: players } = await mySupabase.from('players').select('*');
+            // 2. Sort players by cost (Reverse: Highest to Lowest)
+            const { data: players } = await mySupabase
+                .from('players')
+                .select('*')
+                .order('cost', { ascending: false }); // Database handles the sorting
+            
             allPlayers = players;
 
-            // 3. Load user data (Team, Credits, Rep Player)
-            const { data: userData } = await mySupabase.from('user_teams').select('*').eq('user_id', session.user.id).single();
+            const { data: userData } = await mySupabase
+                .from('user_teams')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .single();
 
             if (userData) {
                 totalCredits = userData.total_credits;
                 repPlayerId = userData.representative_player_id;
-                // If they have a team, map IDs back to player objects
                 if (userData.player_ids) {
                     userTeam = userData.player_ids.map(id => allPlayers.find(p => p.id === id)).filter(p => p);
                 }
             }
 
-            // If new user, start with 3 empty slots
-            if (userTeam.length === 0) {
-                userTeam = [null, null, null];
-            }
-
+            if (userTeam.length === 0) userTeam = [null, null, null];
             renderTeam();
         }
 
@@ -74,7 +90,6 @@
                 const card = document.createElement('div');
                 card.className = 'player-card';
 
-                // "X" button for slots 4 and 5 (or any if total > 3)
                 if (userTeam.length > 3) {
                     const xBtn = document.createElement('button');
                     xBtn.innerText = '×';
@@ -86,7 +101,6 @@
                 const select = document.createElement('select');
                 select.innerHTML = `<option value="">-- Select Player --</option>`;
                 
-                // Filter: No self-selection, no duplicates
                 allPlayers.forEach(p => {
                     const isTaken = userTeam.some((ut, i) => ut && ut.id === p.id && i !== index);
                     const isSelf = p.id === repPlayerId;
@@ -94,7 +108,7 @@
                     if (!isTaken && !isSelf) {
                         const opt = document.createElement('option');
                         opt.value = p.id;
-                        opt.text = `${p.name} (${p.cost})`;
+                        opt.text = `${p.name} (${p.cost.toFixed(1)})`; // Show 1 decimal
                         if (selectedPlayer && selectedPlayer.id === p.id) opt.selected = true;
                         select.appendChild(opt);
                     }
@@ -112,14 +126,12 @@
                     spent += selectedPlayer.cost;
                     const info = document.createElement('div');
                     info.className = 'cost-tag';
-                    info.innerHTML = `<br><strong>${selectedPlayer.name}</strong><br>Cost: ${selectedPlayer.cost}`;
+                    info.innerHTML = `<strong>${selectedPlayer.name}</strong><br>Cost: ${selectedPlayer.cost.toFixed(1)}`;
                     card.appendChild(info);
                 }
-
                 container.appendChild(card);
             });
 
-            // "+" button for slots
             if (userTeam.length < 5) {
                 const addBtn = document.createElement('div');
                 addBtn.className = 'add-btn';
@@ -128,28 +140,34 @@
                 container.appendChild(addBtn);
             }
 
-            // Update Budget
-            document.getElementById('total-credits').innerText = totalCredits;
-            document.getElementById('current-credits').innerText = totalCredits - spent;
-            document.getElementById('current-credits').style.color = (totalCredits - spent < 0) ? 'red' : 'black';
+            // 3. Math Fix: Using .toFixed(1) to avoid 10.39999999
+            const remaining = (totalCredits - spent).toFixed(1);
+            document.getElementById('total-credits').innerText = totalCredits.toFixed(1);
+            document.getElementById('current-credits').innerText = remaining;
+            document.getElementById('current-credits').style.color = (remaining < 0) ? '#ff4d4d' : '#333';
         }
 
         async function saveTeam() {
             const spent = userTeam.reduce((sum, p) => sum + (p ? p.cost : 0), 0);
             const playerIds = userTeam.map(p => p ? p.id : null).filter(id => id !== null);
 
-            // VALIDATION
-            if (playerIds.length < 3) return alert("Min 3 players required!");
-            if (spent > totalCredits) return alert("Over budget!");
-            if (new Set(playerIds).size !== playerIds.length) return alert("No duplicate players!");
-
+            if (playerIds.length < 3) return alert("You need at least 3 players!");
+            if (spent > totalCredits + 0.01) return alert("You are over budget!"); // +0.01 buffer for float math
+            
             const { data: { session } } = await mySupabase.auth.getSession();
-            const { error } = await mySupabase.from('user_teams').upsert({
-                user_id: session.user.id,
-                player_ids: playerIds
-            });
+            
+            // 4. THE FIX: Using .upsert() replaces the old row if user_id matches
+            // IMPORTANT: Your user_teams table must have 'user_id' set as a PRIMARY KEY or UNIQUE constraint
+            const { error } = await mySupabase
+                .from('user_teams')
+                .upsert({
+                    user_id: session.user.id,
+                    player_ids: playerIds,
+                    total_credits: totalCredits, // Keeps their current credit limit
+                    representative_player_id: repPlayerId
+                }, { onConflict: 'user_id' }); // Ensures it overwrites based on the user ID
 
-            if (error) alert("Save failed: " + error.message);
+            if (error) alert("Team save failed: " + error.message);
             else alert("Team successfully saved!");
         }
 
