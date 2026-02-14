@@ -168,13 +168,17 @@
                     if (!isTaken && !isSelf) {
                         const opt = document.createElement('option');
                         opt.value = p.id;
-                        opt.text = `${p.name} (${p.cost.toFixed(1)})`;
+                        
+                        // ADDED: Check if player is NOT playing
+                        let statusTag = p.is_playing ? "" : " [NE IGRA]";
+                        opt.text = `${p.name}${statusTag} (${p.cost.toFixed(1)})`;
+
                         if (selectedPlayer && selectedPlayer.id === p.id) opt.selected = true;
                         select.appendChild(opt);
                     }
                 });
 
-                select.onchange = (e) => {
+                select.onchange = (e) => {  
                     const p = allPlayers.find(pl => pl.id == e.target.value);
                     userTeam[index] = p || null;
                     renderTeam();
@@ -186,7 +190,15 @@
                     spent += selectedPlayer.cost;
                     const info = document.createElement('div');
                     info.className = 'cost-tag';
-                    info.innerHTML = `<strong>${selectedPlayer.name}</strong>Cost: ${selectedPlayer.cost.toFixed(1)}`;
+
+                    // ADDED: Check for red color logic
+                    const nameStyle = selectedPlayer.is_playing ? "" : "color: #ff4d4d;";
+                    const statusText = selectedPlayer.is_playing ? "" : " <small>[NOT PLAYING]</small>";
+
+                    info.innerHTML = `
+                        <strong style="${nameStyle}">${selectedPlayer.name}${statusText}</strong>
+                        Cost: ${selectedPlayer.cost.toFixed(1)}
+                    `;
                     card.appendChild(info);
                 }
                 container.appendChild(card);
