@@ -1,7 +1,72 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enfild Fantazi | Pravila</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: #f0f2f5; 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; margin: 0; padding: 20px;
+        }
+        .rules-card { 
+            background: white; padding: 40px; border-radius: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            max-width: 600px; width: 100%; text-align: left; 
+        }
+        h1 { text-align: center; color: #1a1a1a; margin-top: 0; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; }
+        
+        .rules-content { 
+            margin: 25px 0; 
+            color: #4a5568; 
+            line-height: 1.8; /* Extra space between lines for readability */
+            font-size: 1.05rem;
+        }
+        
+        .rules-content p {
+            margin-bottom: 20px;
+        }
+
+        .back-btn { 
+            position: absolute; top: 20px; left: 20px; 
+            padding: 10px 15px; background: #e24a4a; color: white; 
+            text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 0.9rem;
+        }
+    </style>
+</head>
 <body>
-    <h1>Pravila</h1>
-    <a href="index.html">Back to Home</a>
+
+    <div class="rules-card">
+        <h1>📜 Pravila</h1>
+        
+        <div class="rules-content">
+            <p>
+                Na pocetku svi imaju 70.0 kredita, posle kola dobijate/gubite kredite isto kao u EL fantaziju (malo vise dobijate/gubite nego u el fantaziju)
+            </p>
+            <p>
+                Mozete da imate izmedju 3 i 5 igraca
+            </p>
+            <p>
+                Ne mozete da imate sami sebe u timu
+            </p>
+            <p>
+                Minimalna cena igraca je 4.0 kredita (ne ide ispod toga)
+            </p>
+            <p>
+                Fantazi poeni se racunaju isto kao u el fantaziju (PIR, i bonus od 10% ako igrac pobedi)
+            </p>
+            <p>
+                Imate neograniceno trejdova izmedju kola
+            </p>
+            <p>
+                Ako termin traje preko sat vremena (npr dva sata), to racunamo kao (dve) odvojene utakmice
+            </p>
+        </div>
+
+        <a href="index.html" class="back-btn">Nazad</a>
+    </div>
+
 </body>
 </html>
