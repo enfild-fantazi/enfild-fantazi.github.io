@@ -1,24 +1,61 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Login</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enfild Fantazi | Login</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f0f2f5; }
-        .auth-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 320px; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #4a90e2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; margin: 0; background: #f0f2f5; 
+        }
+        .auth-card { 
+            background: white; padding: 40px; border-radius: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 340px; text-align: center; 
+        }
+        h2 { margin-bottom: 25px; color: #1a1a1a; }
+        input, select { 
+            width: 100%; padding: 12px; margin: 10px 0; 
+            border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; 
+            font-size: 1rem;
+        }
+        button { 
+            width: 100%; padding: 12px; background: #4a90e2; color: white; 
+            border: none; border-radius: 8px; cursor: pointer; 
+            font-weight: bold; margin-top: 10px; font-size: 1rem;
+        }
         .signup-btn { background: #3ecf8e; margin-top: 5px; }
+        .signup-btn:hover { background: #36b37a; }
+        
+        #signup-extra { 
+            display: none; border-top: 1px solid #eee; 
+            margin-top: 20px; padding-top: 15px; text-align: left;
+        }
+        .label-text { font-size: 0.85rem; color: #666; margin-bottom: 5px; display: block; }
     </style>
 </head>
 <body>
+
     <div class="auth-card">
         <h2>👤 Member Login</h2>
         <input type="text" id="username" placeholder="Username">
         <input type="password" id="password" placeholder="Password">
+
+        <div id="signup-extra">
+            <span class="label-text">Izaberi sebe:</span>
+            <select id="rep-select" onchange="toggleOtherInput()">
+                <option value="">-- Ko si ti? --</option>
+                <option value="other">Ne nalazim se ovde</option>
+            </select>
+            <input type="text" id="new-player-name" placeholder="Enter your full name" style="display: none;">
+        </div>
+
         <button onclick="handleAuth('login')">Login</button>
-        <button class="signup-btn" onclick="handleAuth('signup')">Create Account</button>
-        <p id="msg" style="color: red; font-size: 0.8rem;"></p>
+        <button class="signup-btn" id="main-signup-btn" onclick="handleAuth('signup')">Create Account</button>
+        
+        <p id="msg" style="color: #e74c3c; font-size: 0.85rem; margin-top: 15px;"></p>
     </div>
 
     <script>
@@ -26,25 +63,101 @@
         const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
         const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // Fetch players from your manual list
+        async function loadPlayerList() {
+            const { data, error } = await mySupabase.from('players').select('id, name').order('name');
+            const select = document.getElementById('rep-select');
+            
+            // Clear existing options except the first two
+            while (select.options.length > 2) {
+                select.remove(2);
+            }
+
+            if (data) {
+                data.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.text = p.name;
+                    select.appendChild(opt);
+                });
+            }
+        }
+
+        function toggleOtherInput() {
+            const select = document.getElementById('rep-select');
+            const otherInput = document.getElementById('new-player-name');
+            otherInput.style.display = (select.value === 'other') ? 'block' : 'none';
+        }
+
         async function handleAuth(type) {
             const user = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
+            const extra = document.getElementById('signup-extra');
+            const msg = document.getElementById('msg');
             const fakeEmail = `${user}@enfild.com`;
 
+            if (!user || !pass) {
+                msg.innerText = "Please fill in all fields.";
+                return;
+            }
+
+            // Step 1: Reveal extra fields on first Sign Up click
+            if (type === 'signup' && extra.style.display === 'none') {
+                await loadPlayerList();
+                extra.style.display = 'block';
+                document.getElementById('main-signup-btn').innerText = "Confirm Registration";
+                return;
+            }
+
             if (type === 'signup') {
-                const { error } = await mySupabase.auth.signUp({ email: fakeEmail, password: pass });
-                if (error) alert(error.message);
-                else alert("Account created!");
+                const repVal = document.getElementById('rep-select').value;
+                const otherName = document.getElementById('new-player-name').value;
+
+                if (!repVal) {
+                    msg.innerText = "Izaberi svog igraca";
+                    return;
+                }
+
+                // Create the Auth User
+                const { data: authData, error: authError } = await mySupabase.auth.signUp({ 
+                    email: fakeEmail, 
+                    password: pass 
+                });
+
+                if (authError) {
+                    msg.innerText = authError.message;
+                    return;
+                }
+
+                // Link identity in user_teams (Without creating a new player record)
+                // If it's a new name, we store the ID as NULL for now and put the name in a 'pending_name' field
+                const { error: linkErr } = await mySupabase.from('user_teams').insert([{
+                    user_id: authData.user.id,
+                    representative_player_id: (repVal === 'other') ? null : repVal,
+                    temp_name: (repVal === 'other') ? otherName : null, // Optional: add a 'temp_name' column to user_teams
+                    total_credits: 100.0,
+                    player_ids: []
+                }]);
+
+                if (linkErr) {
+                    console.error(linkErr);
+                    msg.innerText = "Account created, but identity link failed.";
+                } else {
+                    alert("Account created successfully! You can now log in.");
+                    location.reload();
+                }
+
             } else {
-                const { data, error } = await mySupabase.auth.signInWithPassword({ email: fakeEmail, password: pass });
-                
+                // Login Logic
+                const { error } = await mySupabase.auth.signInWithPassword({ 
+                    email: fakeEmail, 
+                    password: pass 
+                });
+
                 if (error) {
-                    alert("Login failed!");
-                } else if (data.session) {
-                    // Give the browser a split second to save the cookie/token
-                    setTimeout(() => {
-                        window.location.href = "index.html";
-                    }, 500); 
+                    msg.innerText = "Invalid username or password.";
+                } else {
+                    window.location.href = "index.html";
                 }
             }
         }
