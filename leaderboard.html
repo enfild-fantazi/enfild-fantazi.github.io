@@ -28,9 +28,9 @@
             <thead>
                 <tr>
                     <th>Rank</th>
-                    <th>Ime</th>
                     <th>Username</th>
-                    <th>Points</th>
+                    <th>Ime</th>
+                    <th>Poeni</th>
                 </tr>
             </thead>
             <tbody id="leaderboard-body">
@@ -90,8 +90,8 @@
                 const row = `
                     <tr>
                         <td>${index + 1}</td>
-                        <td><strong>${realName}</strong></td>
-                        <td>@${username}</td>
+                        <td><strong>${username}</strong></td>
+                        <td>${realName}</td>
                         <td class="points">0.0</td>
                     </tr>
                 `;
