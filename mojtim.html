@@ -170,8 +170,8 @@
                         opt.value = p.id;
                         
                         // ADDED: Check if player is NOT playing
-                        let statusTag = p.is_playing ? "" : " [NE IGRA]";
-                        opt.text = `${p.name}${statusTag} (${p.cost.toFixed(1)})`;
+                        let statusTag = p.is_playing ? "" : "[NE IGRA] ";
+                        opt.text = `${statusTag}${p.name} (${p.cost.toFixed(1)})`;
 
                         if (selectedPlayer && selectedPlayer.id === p.id) opt.selected = true;
                         select.appendChild(opt);
@@ -193,10 +193,10 @@
 
                     // ADDED: Check for red color logic
                     const nameStyle = selectedPlayer.is_playing ? "" : "color: #ff4d4d;";
-                    const statusText = selectedPlayer.is_playing ? "" : " <small>[NOT PLAYING]</small>";
+                    const statusText = selectedPlayer.is_playing ? "" : "<small>[NE IGRA]</small> ";
 
                     info.innerHTML = `
-                        <strong style="${nameStyle}">${selectedPlayer.name}${statusText}</strong>
+                        <strong style="${nameStyle}">${statusText}${selectedPlayer.name}</strong>
                         Cost: ${selectedPlayer.cost.toFixed(1)}
                     `;
                     card.appendChild(info);
