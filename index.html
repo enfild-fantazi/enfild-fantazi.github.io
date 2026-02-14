@@ -35,6 +35,15 @@
 
         /* Hidden by default until we check login status */
         .protected { display: none; }
+
+        .page-button.disabled {
+            background-color: #bdc3c7 !important; /* Gray color */
+            color: #7f8c8d;
+            cursor: not-allowed;
+            pointer-events: none; /* This prevents clicking entirely */
+            transform: none !important; /* Disables the hover jump effect */
+            box-shadow: none;
+        }
     </style>
 </head>
 <body>
@@ -49,14 +58,14 @@
         
         <div class="nav-container">
             <a href="mojtim.html" id="btn-page1" class="page-button protected">Moj tim</a>
+            
+            <a class="page-button disabled" id="btn-page2">Leaderboard</a>
+            <a class="page-button disabled" id="btn-page3">Igraci</a>
+            <a class="page-button disabled" id="btn-page4">Lineups</a>
+            <a class="page-button disabled" id="btn-page5">Pravila</a>
+            
             <a href="mojnalog.html" id="btn-page6" class="page-button protected">Moj nalog</a>
-            
-            <a href="leaderboard.html" class="page-button">Leaderboard</a>
-            <a href="igraci.html" class="page-button">Igraci</a>
-            <a href="lineups.html" class="page-button">Lineups</a>
-            <a href="pravila.html" class="page-button">Pravila</a>
-            
-            <a href="login.html" id="login-btn" class="page-button">Member Login</a>
+            <a href="login.html" id="login-btn" class="page-button">Login / Signup</a>
         </div>
     </div>
 
