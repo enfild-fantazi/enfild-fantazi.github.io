@@ -141,8 +141,11 @@
                 }
 
                 // STEP 4: Link to user_teams
+                const usernameOnly = user; // This is the 'user' variable from your input field
+
                 const { error: linkErr } = await mySupabase.from('user_teams').insert([{
                     user_id: authData.user.id,
+                    username: usernameOnly, // <--- Add this line!
                     representative_player_id: (repVal === 'other') ? null : repVal,
                     temp_name: (repVal === 'other') ? otherName : null,
                     total_credits: 70.0,

@@ -1,7 +1,104 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enfild Fantazi | Leaderboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 800px; text-align: center; }
+        .home-btn { 
+            position: absolute; top: 20px; left: 20px; 
+            padding: 10px 15px; background: #e24a4a; color: white; 
+            text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 0.9rem;
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #f8fafc; color: #64748b; padding: 15px; border-bottom: 2px solid #edf2f7; text-transform: uppercase; font-size: 0.85rem; }
+        td { padding: 15px; border-bottom: 1px solid #edf2f7; color: #2d3748; }
+        tr:hover { background-color: #f1f5f9; }
+        .points { font-weight: bold; color: #2ecc71; }
+    </style>
+</head>
 <body>
-    <h1>Leaderboard</h1>
-    <a href="index.html">Back to Home</a>
+    <div class="container">
+        <a href="index.html" class="home-btn">Nazad</a>
+        <h1>Leaderboard</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Ime</th>
+                    <th>Username</th>
+                    <th>Points</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboard-body">
+                <tr><td colspan="4">Loading rankings...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
+        const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function loadLeaderboard() {
+            // 1. Fetch only teams where player_ids is NOT null
+            // We also fetch the full player list to cross-reference names
+            const { data: teams, error: tError } = await mySupabase
+                .from('user_teams')
+                .select('*')
+                .not('player_ids', 'is', null); // Filter out users who haven't even started a team
+
+            const { data: players, error: pError } = await mySupabase
+                .from('players')
+                .select('id, name');
+            
+            const tbody = document.getElementById('leaderboard-body');
+            
+            if (tError || pError) {
+                tbody.innerHTML = '<tr><td colspan="4">Error loading data.</td></tr>';
+                return;
+            }
+
+            // 2. Filter out teams that have an empty array []
+            const activeTeams = teams.filter(team => team.player_ids && team.player_ids.length > 0);
+
+            tbody.innerHTML = '';
+
+            if (activeTeams.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4">No teams have been drafted yet!</td></tr>';
+                return;
+            }
+
+            // 3. Render the active teams
+            activeTeams.forEach((team, index) => {
+                // Determine Real Name logic
+                let realName = "Unknown";
+                if (team.representative_player_id) {
+                    const p = players.find(player => player.id === team.representative_player_id);
+                    realName = p ? p.name : "Missing Player";
+                } else {
+                    realName = team.temp_name || "Pending...";
+                }
+
+                // Username fallback logic
+                const username = team.username || "user_" + team.user_id.substring(0,4);
+
+                const row = `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td><strong>${realName}</strong></td>
+                        <td>@${username}</td>
+                        <td class="points">0.0</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+        loadLeaderboard();
+    </script>
 </body>
 </html>
