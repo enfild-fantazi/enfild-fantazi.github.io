@@ -94,22 +94,26 @@
             const pass = document.getElementById('password').value;
             const extra = document.getElementById('signup-extra');
             const msg = document.getElementById('msg');
+            const signupBtn = document.getElementById('main-signup-btn');
             const fakeEmail = `${user}@enfild.com`;
 
+            // Basic check for username/pass
             if (!user || !pass) {
-                msg.innerText = "Please fill in all fields.";
-                return;
-            }
-
-            // Step 1: Reveal extra fields on first Sign Up click
-            if (type === 'signup' && extra.style.display === 'none') {
-                await loadPlayerList();
-                extra.style.display = 'block';
-                document.getElementById('main-signup-btn').innerText = "Confirm Registration";
+                msg.innerText = "Please enter a username and password first.";
                 return;
             }
 
             if (type === 'signup') {
+                // STEP 1: If the extra info isn't visible yet, show it and STOP.
+                if (window.getComputedStyle(extra).display === 'none') {
+                    await loadPlayerList(); // Get the players from DB
+                    extra.style.display = 'block'; // Show the dropdown
+                    signupBtn.innerText = "Confirm & Register"; // Change button text
+                    msg.innerText = ""; // Clear any old errors
+                    return; // Exit the function so they can fill the form
+                }
+
+                // STEP 2: If we are here, the extra info IS visible. Now validate the selection.
                 const repVal = document.getElementById('rep-select').value;
                 const otherName = document.getElementById('new-player-name').value;
 
@@ -118,7 +122,14 @@
                     return;
                 }
 
-                // Create the Auth User
+                if (repVal === 'other' && !otherName) {
+                    msg.innerText = "Unesi svoje puno ime i prezime";
+                    return;
+                }
+
+                // STEP 3: Proceed to Supabase Registration
+                msg.innerText = "Creating account...";
+                
                 const { data: authData, error: authError } = await mySupabase.auth.signUp({ 
                     email: fakeEmail, 
                     password: pass 
@@ -129,36 +140,31 @@
                     return;
                 }
 
-                // Link identity in user_teams (Without creating a new player record)
-                // If it's a new name, we store the ID as NULL for now and put the name in a 'pending_name' field
+                // STEP 4: Link to user_teams
                 const { error: linkErr } = await mySupabase.from('user_teams').insert([{
                     user_id: authData.user.id,
                     representative_player_id: (repVal === 'other') ? null : repVal,
-                    temp_name: (repVal === 'other') ? otherName : null, // Optional: add a 'temp_name' column to user_teams
+                    temp_name: (repVal === 'other') ? otherName : null,
                     total_credits: 70.0,
                     player_ids: []
                 }]);
 
                 if (linkErr) {
-                    console.error(linkErr);
-                    msg.innerText = "Account created, but identity link failed.";
+                    msg.innerText = "Auth success, but team link failed: " + linkErr.message;
                 } else {
-                    alert("Account created successfully! You can now log in.");
+                    alert("Account created! You can now log in.");
                     location.reload();
                 }
 
             } else {
-                // Login Logic
+                // Normal Login Logic
                 const { error } = await mySupabase.auth.signInWithPassword({ 
                     email: fakeEmail, 
                     password: pass 
                 });
 
-                if (error) {
-                    msg.innerText = "Invalid username or password.";
-                } else {
-                    window.location.href = "index.html";
-                }
+                if (error) msg.innerText = "Invalid login details.";
+                else window.location.href = "index.html";
             }
         }
     </script>
