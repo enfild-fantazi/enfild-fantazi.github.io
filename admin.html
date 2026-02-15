@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Enfild Fantazi | Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 40px; text-align: center; }
+        .admin-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: inline-block; }
+        .round-btn { padding: 15px 30px; background: #e67e22; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .round-btn:hover { background: #d35400; }
+        #status { margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="admin-card">
+        <h1>🛠 Admin Control Panel</h1>
+        <p>Current Action: End the current round and save all teams to history.</p>
+        
+        <input type="number" id="round-num" placeholder="Round Number (e.g. 1)" style="padding: 10px; margin-bottom: 10px;"><br>
+        
+        <button class="round-btn" onclick="snapshotTeams()">🚀 Snapshot All Teams & Start New Round</button>
+        
+        <div id="status"></div>
+        <br>
+        <a href="index.html">Back to Home</a>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
+        const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // 1. GATEKEEPER: Kick out anyone who isn't the admin
+        async function checkAdmin() {
+            const { data: { session } } = await mySupabase.auth.getSession();
+            
+            // Check if logged in AND if the username (from email) is 'admin'
+            if (!session || !session.user.email.startsWith('admin@')) {
+                alert("ACCESS DENIED: Admins only.");
+                window.location.href = "index.html";
+            }
+        }
+
+        // 2. SNAPSHOT LOGIC
+        async function snapshotTeams() {
+            const roundNum = document.getElementById('round-num').value;
+            const status = document.getElementById('status');
+
+            if (!roundNum) return alert("Please enter a round number.");
+            
+            status.innerText = "Processing snapshot...";
+
+            // A. Get all current teams from 'user_teams'
+            const { data: currentTeams, error: fetchErr } = await mySupabase
+                .from('user_teams')
+                .select('user_id, username, player_ids');
+
+            if (fetchErr) {
+                status.innerText = "Error fetching teams: " + fetchErr.message;
+                return;
+            }
+
+            // B. Filter out users who don't have a team yet
+            const validTeams = currentTeams.filter(t => t.player_ids && t.player_ids.length > 0);
+
+            // C. Map data to match 'past_teams' structure
+            const snapshotData = validTeams.map(t => ({
+                user_id: t.user_id,
+                username: t.username,
+                player_ids: t.player_ids,
+                round_number: parseInt(roundNum)
+            }));
+
+            // D. Insert into 'past_teams'
+            const { error: insertErr } = await mySupabase
+                .from('past_teams')
+                .insert(snapshotData);
+
+            if (insertErr) {
+                status.innerText = "Error saving history: " + insertErr.message;
+            } else {
+                status.innerText = `✅ Round ${roundNum} successfully archived!`;
+                alert(`Round ${roundNum} is now locked in the history table.`);
+            }
+        }
+
+        checkAdmin();
+    </script>
+</body>
+</html>
