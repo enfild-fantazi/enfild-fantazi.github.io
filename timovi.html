@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Enfild Fantazi | Timovi</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .round-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px; text-align: left; }
+        .round-title { font-size: 1.2rem; font-weight: bold; color: #1e293b; border-bottom: 2px solid #4a90e2; padding-bottom: 5px; margin-bottom: 10px; }
+        .player-list { color: #475569; line-height: 1.6; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #4a90e2; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <a href="leaderboard.html" class="back-link">← Back to Leaderboard</a>
+        <h1 id="user-title">Stari timovi</h1>
+        <div id="history-content">Loading past teams...</div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
+        const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function loadHistory() {
+            // 1. Get User ID and Name from URL
+            const params = new URLSearchParams(window.location.search);
+            const userId = params.get('id');
+            const realName = params.get('name');
+            if (realName) document.getElementById('user-title').innerText = `History: ${realName}`;
+
+            if (!userId) {
+                document.getElementById('history-content').innerText = "No user selected.";
+                return;
+            }
+
+            // 2. Fetch all past teams for this user and all players
+            const { data: pastTeams } = await mySupabase
+                .from('past_teams')
+                .select('*')
+                .eq('user_id', userId)
+                .order('round_number', { ascending: false });
+
+            const { data: players } = await mySupabase.from('players').select('id, name');
+
+            const content = document.getElementById('history-content');
+            content.innerHTML = '';
+
+            if (!pastTeams || pastTeams.length === 0) {
+                content.innerText = "No historical rounds found for this user.";
+                return;
+            }
+
+            // 3. Render each round
+            pastTeams.forEach(round => {
+                const roundDiv = document.createElement('div');
+                roundDiv.className = 'round-box';
+
+                // Find player names from the IDs saved in this round
+                const teamNames = round.player_ids.map(id => {
+                    const p = players.find(pl => pl.id == id);
+                    return p ? p.name : "Unknown Player";
+                }).join(', ');
+
+                roundDiv.innerHTML = `
+                    <div class="round-title">Round ${round.round_number}</div>
+                    <div class="player-list"><strong>Roster:</strong> ${teamNames}</div>
+                `;
+                content.appendChild(roundDiv);
+            });
+        }
+
+        loadHistory();
+    </script>
+</body>
+</html>
