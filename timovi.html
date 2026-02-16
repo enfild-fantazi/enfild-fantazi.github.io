@@ -6,19 +6,95 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .round-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px; text-align: left; }
-        .round-title { font-size: 1.2rem; font-weight: bold; color: #1e293b; border-bottom: 2px solid #4a90e2; padding-bottom: 5px; margin-bottom: 10px; }
-        .player-list { color: #475569; line-height: 1.6; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        
+        /* Round Selection Buttons */
+        .round-tabs { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+        .tab-btn { 
+            padding: 10px 20px; border: none; border-radius: 8px; background: #edf2f7; 
+            cursor: pointer; font-weight: bold; transition: 0.2s;
+        }
+        .tab-btn.active { background: #4a90e2; color: white; }
+
+        /* Player Card Grid */
+        .team-grid { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 20px; margin-top: 20px; 
+        }
+        .player-card { 
+            background: #fff; border: 2px solid #e2e8f0; border-radius: 15px; 
+            padding: 20px; text-align: center; transition: transform 0.2s;
+        }
+        .player-card:hover { transform: translateY(-5px); border-color: #4a90e2; }
+        .player-name { font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; display: block; }
+        
+        .stat-line { display: flex; justify-content: space-between; margin: 5px 0; font-size: 0.9rem; color: #4a5568; }
+        .stat-val { font-weight: bold; color: #2d3748; }
+        .gain-positive { color: #2ecc71; }
+        .gain-negative { color: #e74c3c; }
+
         .back-link { display: inline-block; margin-bottom: 20px; color: #4a90e2; text-decoration: none; font-weight: bold; }
+
+        .team-footer {
+            margin-top: 30px;
+            padding: 20px;
+            background: #2d3748;
+            color: white;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            /* This ensures it spans the full width and doesn't act like a grid item */
+            width: 100%;
+            box-sizing: border-box; 
+            clear: both;
+        }
+        .footer-item span {
+            display: block;
+            font-size: 0.8rem;
+            color: #a0aec0;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .footer-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* This is the label (Small & Gray) */
+        .footer-item span.label {
+            font-size: 0.8rem;
+            color: #a0aec0;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        /* This is the actual score/gain (Large & Bold) */
+        .footer-val {
+            font-size: 1.5rem; /* Larger than before */
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        /* Colors for the gain */
+        .gain-positive { color: #2ecc71 !important; }
+        .gain-negative { color: #ff4d4d !important; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <a href="leaderboard.html" class="back-link">← Back to Leaderboard</a>
-        <h1 id="user-title">Stari timovi</h1>
-        <div id="history-content">Loading past teams...</div>
+        <h1 id="user-title">Timovi</h1>
+        
+        <div id="round-tabs" class="round-tabs"></div>
+        <div id="team-display" class="team-grid">
+            <p>Select a round to view the team.</p>
+        </div>
     </div>
 
     <script>
@@ -26,75 +102,132 @@
         const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
         const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        async function loadHistory() {
-            // 1. Get User ID and Name from URL
+        let allHistory = [];
+        let allPlayers = [];
+        let allScores = [];
+
+        async function init() {
             const params = new URLSearchParams(window.location.search);
             const userId = params.get('id');
             const username = params.get('name');
+            if (username) document.getElementById('user-title').innerText = `${username}`;
 
-            const { data: allScores } = await mySupabase.from('player_scores').select('*');
-            
-            if (username) document.getElementById('user-title').innerText = `Timovi: ${username}`;
+            // Fetch everything needed
+            const { data: past } = await mySupabase.from('past_teams').select('*').eq('user_id', userId).order('round_number', { ascending: true });
+            const { data: pls } = await mySupabase.from('players').select('*');
+            const { data: scs } = await mySupabase.from('player_scores').select('*');
 
-            if (!userId) {
-                document.getElementById('history-content').innerText = "No user selected.";
-                return;
-            }
+            allHistory = past || [];
+            allPlayers = pls || [];
+            allScores = scs || [];
 
-            // 2. Fetch all past teams for this user and all players
-            const { data: pastTeams } = await mySupabase
-                .from('past_teams')
-                .select('*')
-                .eq('user_id', userId)
-                .order('round_number', { ascending: false });
+            renderTabs();
+            if (allHistory.length > 0) showRound(allHistory[allHistory.length - 1].round_number);
+        }
 
-            const { data: players } = await mySupabase.from('players').select('id, name');
-
-            const content = document.getElementById('history-content');
-            content.innerHTML = '';
-
-            if (!pastTeams || pastTeams.length === 0) {
-                content.innerText = "No historical rounds found for this user.";
-                return;
-            }
-
-            // 3. Render each round
-            pastTeams.forEach(round => {
-                const roundDiv = document.createElement('div');
-                roundDiv.className = 'round-box';
-
-                // Find player names from the IDs saved in this round
-                const teamNames = round.player_ids.map(id => {
-                    const p = players.find(pl => pl.id == id);
-                    return p ? p.name : "Unknown Player";
-                }).join(', ');
-
-                roundDiv.innerHTML = `
-                    <div class="round-title">Round ${round.round_number}</div>
-                    <div class="player-list"><strong>Roster:</strong> ${teamNames}</div>
-                `;
-                content.appendChild(roundDiv);
-
-                // Inside the loop where you render rounds:
-                let roundPoints = 0;
-
-                round.player_ids.forEach(pId => {
-                    // Assuming you fetched 'allScores' at the top of the function
-                    const scoreEntry = allScores.find(s => s.player_id == pId && s.round_number == round.round_number);
-                    if (scoreEntry) roundPoints += scoreEntry.points;
-                });
-
-                roundDiv.innerHTML = `
-                    <div class="round-title">
-                        Round ${round.round_number} 
-                        <span style="float: right; color: #2ecc71;">+${roundPoints.toFixed(1)} pts</span>
-                    </div>
-                    <div class="player-list"><strong>Roster:</strong> ${teamNames}</div>
-                `;
+        function renderTabs() {
+            const container = document.getElementById('round-tabs');
+            container.innerHTML = '';
+            allHistory.forEach(h => {
+                const btn = document.createElement('button');
+                btn.className = 'tab-btn';
+                btn.innerText = `Round ${h.round_number}`;
+                btn.onclick = () => showRound(h.round_number);
+                btn.id = `btn-r-${h.round_number}`;
+                container.appendChild(btn);
             });
         }
 
-        loadHistory();
+        // Updated Math to include the 4.0 Floor
+        function calculateGain(points, cost) {
+            const raw = (points - cost) * 0.1;
+            let intermediate = Math.round(raw * 100) / 100; // Round to 2 decimals
+            let finalGain = Math.round(intermediate * 10) / 10; // Round to 1 decimal
+
+            // FLOOR LOGIC: Cost cannot go below 4.0
+            // If current cost is 4.3, max loss is -0.3
+            if (finalGain < 0) {
+                const maxLoss = -1 * (cost - 4.0);
+                if (finalGain < maxLoss) {
+                    finalGain = maxLoss;
+                }
+            }
+
+            return finalGain;
+        }
+
+        function showRound(rNum) {
+            // 1. Update Tab UI Appearance
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            const activeBtn = document.getElementById(`btn-r-${rNum}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // 2. Identify the Containers
+            const display = document.getElementById('team-display'); // This is your Grid
+            const container = document.querySelector('.container');  // This is the White Box
+            
+            // 3. Cleanup: Clear the grid and remove any previous footer
+            display.innerHTML = '';
+            const oldFooter = document.querySelector('.team-footer');
+            if (oldFooter) oldFooter.remove();
+
+            // 4. Find the specific round data
+            const roundData = allHistory.find(h => h.round_number === rNum);
+            if (!roundData) return;
+
+            let totalPoints = 0;
+            let totalGain = 0;
+
+            // 5. Loop through players and create cards
+            roundData.player_ids.forEach(pId => {
+                const player = allPlayers.find(p => p.id == pId);
+                if (!player) return;
+
+                const score = allScores.find(s => s.player_id == pId && s.round_number == rNum);
+                const pts = score ? score.points : 0.0;
+                
+                // Use the math function we built with the 4.0 floor
+                const gain = parseFloat(calculateGain(pts, player.cost));
+
+                totalPoints += pts;
+                totalGain += gain;
+
+                const card = document.createElement('div');
+                card.className = 'player-card';
+                card.innerHTML = `
+                    <span class="player-name">${player.name}</span>
+                    <div class="stat-line"><span>Cost</span><span class="stat-val">${player.cost.toFixed(1)}</span></div>
+                    <div class="stat-line"><span>Points</span><span class="stat-val">${pts.toFixed(1)}</span></div>
+                    <div class="stat-line">
+                        <span>Credit Gain</span>
+                        <span class="stat-val ${gain >= 0 ? 'gain-positive' : 'gain-negative'}">
+                            ${gain >= 0 ? '+' : ''}${gain.toFixed(1)}
+                        </span>
+                    </div>
+                `;
+                display.appendChild(card);
+            });
+
+            // 6. Create the Footer with corrected classes
+            const footer = document.createElement('div');
+            footer.className = 'team-footer';
+            footer.innerHTML = `
+                <div class="footer-item">
+                    <span class="label">Round Total Points</span>
+                    <div class="footer-val">${totalPoints.toFixed(1)} Pts</div>
+                </div>
+                <div class="footer-item">
+                    <span class="label">Round Total Gain</span>
+                    <div class="footer-val ${totalGain >= 0 ? 'gain-positive' : 'gain-negative'}">
+                        ${totalGain >= 0 ? '+' : ''}${totalGain.toFixed(1)} Credits
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(footer);
+        }
+
+        init();
     </script>
 </body>
 </html>
