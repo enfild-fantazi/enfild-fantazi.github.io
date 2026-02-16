@@ -30,8 +30,8 @@
             // 1. Get User ID and Name from URL
             const params = new URLSearchParams(window.location.search);
             const userId = params.get('id');
-            const realName = params.get('name');
-            if (realName) document.getElementById('user-title').innerText = `History: ${realName}`;
+            const username = params.get('name');
+            if (username) document.getElementById('user-title').innerText = `<Timovi>: ${username}`;
 
             if (!userId) {
                 document.getElementById('history-content').innerText = "No user selected.";
