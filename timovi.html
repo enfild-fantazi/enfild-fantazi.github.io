@@ -31,7 +31,7 @@
             const params = new URLSearchParams(window.location.search);
             const userId = params.get('id');
             const username = params.get('name');
-            if (username) document.getElementById('user-title').innerText = `<Timovi>: ${username}`;
+            if (username) document.getElementById('user-title').innerText = `Timovi: ${username}`;
 
             if (!userId) {
                 document.getElementById('history-content').innerText = "No user selected.";

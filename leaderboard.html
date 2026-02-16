@@ -91,13 +91,13 @@
                 const row = `
                     <tr>
                         <td>${index + 1}</td>
-                        <td><strong>${username}</strong></td>
                         <td>
                             <a href="timovi.html?id=${team.user_id}&name=${encodeURIComponent(username)}" 
                             style="color: #4a90e2; text-decoration: none; font-weight: bold;">
-                            @${realName}
+                            ${username}
                             </a>
                         </td>
+                        <td><strong>${realName}</strong></td>
                         <td class="points">0.0</td>
                     </tr>
 `;
