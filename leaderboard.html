@@ -18,6 +18,16 @@
         td { padding: 15px; border-bottom: 1px solid #edf2f7; color: #2d3748; }
         tr:hover { background-color: #f1f5f9; }
         .points { font-weight: bold; color: #2ecc71; }
+
+        /* Make the entire row look interactive */
+        #leaderboard-body tr {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #leaderboard-body tr:hover {
+            background-color: #edf2f7; /* Light blue/gray highlight */
+        }
     </style>
 </head>
 <body>
@@ -75,7 +85,7 @@
 
             // 3. Render the active teams
             activeTeams.forEach((team, index) => {
-                // Determine Real Name logic
+                // 1. Determine Real Name
                 let realName = "Unknown";
                 if (team.representative_player_id) {
                     const p = players.find(player => player.id === team.representative_player_id);
@@ -84,24 +94,26 @@
                     realName = team.temp_name || "Pending...";
                 }
 
-                // Username fallback logic
                 const username = team.username || "user_" + team.user_id.substring(0,4);
 
-                // Change the Username cell to include a link
-                const row = `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td>
-                            <a href="timovi.html?id=${team.user_id}&name=${encodeURIComponent(username)}" 
-                            style="color: #4a90e2; text-decoration: none; font-weight: bold;">
-                            <strong>${username}</strong>
-                            </a>
-                        </td>
-                        <td>${realName}</td>
-                        <td class="points">0.0</td>
-                    </tr>
-`;
-                tbody.innerHTML += row;
+                // 2. Create the row element
+                const row = document.createElement('tr');
+                
+                // 3. Add the click event to the whole row
+                row.onclick = () => {
+                    const urlName = encodeURIComponent(realName);
+                    window.location.href = `user_history.html?id=${team.user_id}&name=${urlName}`;
+                };
+
+                // 4. Set the internal HTML
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td><strong>${username}</strong></td>
+                    <td style="color: #4a90e2; font-weight: bold;">${realName}</td>
+                    <td class="points">0.0</td>
+                `;
+
+                tbody.appendChild(row);
             });
         }
         loadLeaderboard();
