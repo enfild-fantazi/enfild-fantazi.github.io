@@ -101,15 +101,15 @@
                 
                 // 3. Add the click event to the whole row
                 row.onclick = () => {
-                    const urlName = encodeURIComponent(realName);
-                    window.location.href = `user_history.html?id=${team.user_id}&name=${urlName}`;
+                    const urlName = encodeURIComponent(username);
+                    window.location.href = `timovi.html?id=${team.user_id}&name=${urlName}`;
                 };
 
                 // 4. Set the internal HTML
                 row.innerHTML = `
                     <td>${index + 1}</td>
                     <td><strong>${username}</strong></td>
-                    <td style="color: #4a90e2; font-weight: bold;">${realName}</td>
+                    <td>${realName}</td>
                     <td class="points">0.0</td>
                 `;
 
