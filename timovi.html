@@ -141,19 +141,28 @@
         // Updated Math to include the 4.0 Floor
         function calculateGain(points, cost) {
             const raw = (points - cost) * 0.1;
-            let intermediate = Math.round(raw * 100) / 100; // Round to 2 decimals
-            let finalGain = Math.round(intermediate * 10) / 10; // Round to 1 decimal
+            
+            // Custom Banker's Rounding logic to 1 decimal place
+            const roundToEven = (num) => {
+                const d = 1; // decimal places
+                const m = Math.pow(10, d);
+                const n = +(d ? num * m : num).toFixed(8); // fix binary precision
+                const i = Math.floor(n), f = n - i;
+                const e = 1e-8;
+                const r = (f > 0.5 - e && f < 0.5 + e) ?
+                        ((i % 2 === 0) ? i : i + 1) : Math.round(n);
+                return d ? r / m : r;
+            };
 
-            // FLOOR LOGIC: Cost cannot go below 4.0
-            // If current cost is 4.3, max loss is -0.3
+            let finalGain = roundToEven(raw);
+
+            // Apply the 4.0 Floor logic
             if (finalGain < 0) {
                 const maxLoss = -1 * (cost - 4.0);
-                if (finalGain < maxLoss) {
-                    finalGain = maxLoss;
-                }
+                if (finalGain < maxLoss) finalGain = maxLoss;
             }
 
-            return finalGain;
+            return finalGain.toFixed(1);
         }
 
         function showRound(rNum) {
