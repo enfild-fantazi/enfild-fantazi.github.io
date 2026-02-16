@@ -55,7 +55,6 @@
         const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         async function loadLeaderboard() {
-            // 1. Fetch all necessary data
             const { data: teams } = await mySupabase.from('user_teams').select('*');
             const { data: players } = await mySupabase.from('players').select('id, name');
             const { data: pastTeams } = await mySupabase.from('past_teams').select('*');
@@ -66,27 +65,19 @@
 
             if (!teams) return;
 
-            // 2. Map users to their total points
-            const leaderboardData = teams.map(userRow => {
+            // 1. Calculate points and attach Real Names first
+            const processedData = teams.map(userRow => {
                 let totalPoints = 0;
-
-                // Filter all historical entries for THIS user
                 const userHistory = pastTeams.filter(pt => pt.user_id === userRow.user_id);
 
                 userHistory.forEach(historyRow => {
                     const round = historyRow.round_number;
-                    const teamIds = historyRow.player_ids; // e.g., [1, 5, 12]
-
-                    // Find points for these players in THIS specific round
-                    teamIds.forEach(pId => {
+                    historyRow.player_ids.forEach(pId => {
                         const scoreEntry = allScores.find(s => s.player_id == pId && s.round_number == round);
-                        if (scoreEntry) {
-                            totalPoints += scoreEntry.points;
-                        }
+                        if (scoreEntry) totalPoints += scoreEntry.points;
                     });
                 });
 
-                // Determine names for display
                 let realName = "Unknown";
                 if (userRow.representative_player_id) {
                     const p = players.find(player => player.id === userRow.representative_player_id);
@@ -95,29 +86,27 @@
                     realName = userRow.temp_name || "Pending...";
                 }
 
-                return {
-                    ...userRow,
-                    realName: realName,
-                    totalPoints: totalPoints
-                };
+                return { ...userRow, realName, totalPoints };
             });
 
-            // 3. Sort by points (Highest first)
-            leaderboardData.sort((a, b) => b.totalPoints - a.totalPoints);
+            // 2. FILTER out the empty teams BEFORE rendering
+            // This removes that "missing index" ghost user
+            const activeLeaderboard = processedData.filter(user => 
+                user.player_ids && user.player_ids.length > 0
+            );
 
-            // 4. Render the rows
-            leaderboardData.forEach((user, index) => {
-                // Only show if they have a team
-                if (!user.player_ids || user.player_ids.length === 0) return;
+            // 3. SORT the active list
+            activeLeaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
 
+            // 4. RENDER the rows using the index of the NEW filtered array
+            activeLeaderboard.forEach((user, index) => {
                 const row = document.createElement('tr');
                 row.onclick = () => {
                     window.location.href = `timovi.html?id=${user.user_id}&name=${encodeURIComponent(user.username)}`;
                 };
 
                 row.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td><strong>${user.username || 'user'}</strong></td>
+                    <td>${index + 1}</td> <td><strong>${user.username || 'user'}</strong></td>
                     <td>${user.realName}</td>
                     <td class="points">${user.totalPoints.toFixed(1)}</td>
                 `;
