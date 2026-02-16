@@ -2,70 +2,120 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enfild Fantazi | Admin</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 40px; text-align: center; }
-        .admin-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: inline-block; }
-        .round-btn { padding: 15px 30px; background: #e67e22; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .round-btn:hover { background: #d35400; }
-        #status { margin-top: 20px; font-weight: bold; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #f0f2f5; padding: 40px; text-align: center; color: #333; 
+        }
+        .admin-card { 
+            background: white; padding: 30px; border-radius: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            display: inline-block; width: 100%; max-width: 500px;
+        }
+        h1 { color: #2c3e50; margin-bottom: 30px; }
+        h2 { font-size: 1.2rem; color: #34495e; margin-top: 0; }
+        
+        .admin-section { 
+            padding: 20px; border: 1px solid #edf2f7; 
+            border-radius: 12px; margin-bottom: 25px; background: #fafafa;
+        }
+
+        input[type="number"] {
+            padding: 12px; width: 80%; border: 1px solid #cbd5e0;
+            border-radius: 8px; margin-bottom: 15px; font-size: 1rem;
+        }
+
+        .btn { 
+            padding: 12px 25px; border: none; border-radius: 8px; 
+            font-weight: bold; cursor: pointer; transition: transform 0.1s, opacity 0.2s;
+            color: white; font-size: 1rem; width: 85%;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-snapshot { background: #e67e22; margin-bottom: 10px; }
+        .btn-scores { background: #3498db; }
+        
+        #status { 
+            margin-top: 20px; padding: 15px; border-radius: 8px;
+            font-weight: bold; min-height: 20px; 
+        }
+        .success { background: #d1fae5; color: #065f46; }
+        .error { background: #fee2e2; color: #991b1b; }
+
+        .home-link { 
+            display: inline-block; margin-top: 30px; color: #4a90e2; 
+            text-decoration: none; font-weight: bold; 
+        }
     </style>
 </head>
 <body>
 
     <div class="admin-card">
-        <h1>🛠 Admin Control Panel</h1>
-        <p>Current Action: End the current round and save all teams to history.</p>
-        
-        <input type="number" id="round-num" placeholder="Round Number (e.g. 1)" style="padding: 10px; margin-bottom: 10px;"><br>
-        
-        <button class="round-btn" onclick="snapshotTeams()">🚀 Snapshot All Teams & Start New Round</button>
-        
+        <h1>🛠 Admin Panel</h1>
+
+        <div class="admin-section">
+            <h2>📦 End Round: Archive Teams</h2>
+            <p style="font-size: 0.85rem; color: #666;">Copies everyone's current team into the history table for this round.</p>
+            <input type="number" id="round-num-snapshot" placeholder="Enter Round Number">
+            <button class="btn btn-snapshot" onclick="snapshotTeams()">Save Teams to History</button>
+        </div>
+
+        <div class="admin-section">
+            <h2>📊 Start Scoring: Prepare Card</h2>
+            <p style="font-size: 0.85rem; color: #666;">Creates 0.0 point entries for all players marked as "Playing".</p>
+            <input type="number" id="round-num-scores" placeholder="Enter Round Number">
+            <button class="btn btn-scores" onclick="initializeScores()">Initialize Scorecard</button>
+        </div>
+
         <div id="status"></div>
-        <br>
-        <a href="index.html">Back to Home</a>
+
+        <a href="index.html" class="home-link">🏠 Return to Home</a>
     </div>
 
     <script>
+        // --- CONFIG ---
         const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
         const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // 1. GATEKEEPER: Kick out anyone who isn't the admin
+        // --- 1. GATEKEEPER: AUTH CHECK ---
         async function checkAdmin() {
             const { data: { session } } = await mySupabase.auth.getSession();
             
-            // Check if logged in AND if the username (from email) is 'admin'
+            // Check if logged in AND if the username (from fake email) is 'admin'
             if (!session || !session.user.email.startsWith('admin@')) {
                 alert("ACCESS DENIED: Admins only.");
                 window.location.href = "index.html";
             }
         }
 
-        // 2. SNAPSHOT LOGIC
-        async function snapshotTeams() {
-            const roundNum = document.getElementById('round-num').value;
-            const status = document.getElementById('status');
+        function showStatus(msg, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = msg;
+            statusDiv.className = isError ? 'error' : 'success';
+        }
 
+        // --- 2. SNAPSHOT LOGIC ---
+        
+        async function snapshotTeams() {
+            const roundNum = document.getElementById('round-num-snapshot').value;
             if (!roundNum) return alert("Please enter a round number.");
             
-            status.innerText = "Processing snapshot...";
+            showStatus("Fetching current rosters...");
 
-            // A. Get all current teams from 'user_teams'
             const { data: currentTeams, error: fetchErr } = await mySupabase
                 .from('user_teams')
                 .select('user_id, username, player_ids');
 
-            if (fetchErr) {
-                status.innerText = "Error fetching teams: " + fetchErr.message;
-                return;
-            }
+            if (fetchErr) return showStatus("Fetch Error: " + fetchErr.message, true);
 
-            // B. Filter out users who don't have a team yet
+            // Filter out empty teams
             const validTeams = currentTeams.filter(t => t.player_ids && t.player_ids.length > 0);
 
-            // C. Map data to match 'past_teams' structure
             const snapshotData = validTeams.map(t => ({
                 user_id: t.user_id,
                 username: t.username,
@@ -73,19 +123,42 @@
                 round_number: parseInt(roundNum)
             }));
 
-            // D. Insert into 'past_teams'
-            const { error: insertErr } = await mySupabase
-                .from('past_teams')
-                .insert(snapshotData);
+            const { error: insertErr } = await mySupabase.from('past_teams').insert(snapshotData);
 
-            if (insertErr) {
-                status.innerText = "Error saving history: " + insertErr.message;
-            } else {
-                status.innerText = `✅ Round ${roundNum} successfully archived!`;
-                alert(`Round ${roundNum} is now locked in the history table.`);
-            }
+            if (insertErr) showStatus("Save Error: " + insertErr.message, true);
+            else showStatus(`✅ Round ${roundNum} rosters archived!`);
         }
 
+        // --- 3. SCORE INITIALIZATION LOGIC ---
+        
+        async function initializeScores() {
+            const roundNum = document.getElementById('round-num-scores').value;
+            if (!roundNum) return alert("Please enter a round number.");
+
+            showStatus("Finding active players...");
+
+            const { data: players, error: pErr } = await mySupabase
+                .from('players')
+                .select('id')
+                .eq('is_playing', true);
+
+            if (pErr) return showStatus("Player Fetch Error: " + pErr.message, true);
+
+            const scoreRows = players.map(p => ({
+                player_id: p.id,
+                round_number: parseInt(roundNum),
+                points: 0.0
+            }));
+
+            showStatus(`Preparing ${scoreRows.length} scorecards...`);
+            
+            const { error: insertErr } = await mySupabase.from('player_scores').insert(scoreRows);
+
+            if (insertErr) showStatus("Initialization Error: " + insertErr.message, true);
+            else showStatus(`✅ Scorecard ready for Round ${roundNum}!`);
+        }
+
+        // Run security check on load
         checkAdmin();
     </script>
 </body>

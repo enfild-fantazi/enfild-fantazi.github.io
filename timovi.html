@@ -71,6 +71,23 @@
                     <div class="player-list"><strong>Roster:</strong> ${teamNames}</div>
                 `;
                 content.appendChild(roundDiv);
+
+                // Inside the loop where you render rounds:
+                let roundPoints = 0;
+
+                round.player_ids.forEach(pId => {
+                    // Assuming you fetched 'allScores' at the top of the function
+                    const scoreEntry = allScores.find(s => s.player_id == pId && s.round_number == round.round_number);
+                    if (scoreEntry) roundPoints += scoreEntry.points;
+                });
+
+                roundDiv.innerHTML = `
+                    <div class="round-title">
+                        Round ${round.round_number} 
+                        <span style="float: right; color: #2ecc71;">+${roundPoints.toFixed(1)} pts</span>
+                    </div>
+                    <div class="player-list"><strong>Roster:</strong> ${teamNames}</div>
+                `;
             });
         }
 

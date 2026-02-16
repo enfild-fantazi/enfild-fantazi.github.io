@@ -55,64 +55,72 @@
         const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         async function loadLeaderboard() {
-            // 1. Fetch only teams where player_ids is NOT null
-            // We also fetch the full player list to cross-reference names
-            const { data: teams, error: tError } = await mySupabase
-                .from('user_teams')
-                .select('*')
-                .not('player_ids', 'is', null); // Filter out users who haven't even started a team
-
-            const { data: players, error: pError } = await mySupabase
-                .from('players')
-                .select('id, name');
+            // 1. Fetch all necessary data
+            const { data: teams } = await mySupabase.from('user_teams').select('*');
+            const { data: players } = await mySupabase.from('players').select('id, name');
+            const { data: pastTeams } = await mySupabase.from('past_teams').select('*');
+            const { data: allScores } = await mySupabase.from('player_scores').select('*');
             
             const tbody = document.getElementById('leaderboard-body');
-            
-            if (tError || pError) {
-                tbody.innerHTML = '<tr><td colspan="4">Error loading data.</td></tr>';
-                return;
-            }
-
-            // 2. Filter out teams that have an empty array []
-            const activeTeams = teams.filter(team => team.player_ids && team.player_ids.length > 0);
-
             tbody.innerHTML = '';
 
-            if (activeTeams.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4">No teams have been drafted yet!</td></tr>';
-                return;
-            }
+            if (!teams) return;
 
-            // 3. Render the active teams
-            activeTeams.forEach((team, index) => {
-                // 1. Determine Real Name
+            // 2. Map users to their total points
+            const leaderboardData = teams.map(userRow => {
+                let totalPoints = 0;
+
+                // Filter all historical entries for THIS user
+                const userHistory = pastTeams.filter(pt => pt.user_id === userRow.user_id);
+
+                userHistory.forEach(historyRow => {
+                    const round = historyRow.round_number;
+                    const teamIds = historyRow.player_ids; // e.g., [1, 5, 12]
+
+                    // Find points for these players in THIS specific round
+                    teamIds.forEach(pId => {
+                        const scoreEntry = allScores.find(s => s.player_id == pId && s.round_number == round);
+                        if (scoreEntry) {
+                            totalPoints += scoreEntry.points;
+                        }
+                    });
+                });
+
+                // Determine names for display
                 let realName = "Unknown";
-                if (team.representative_player_id) {
-                    const p = players.find(player => player.id === team.representative_player_id);
+                if (userRow.representative_player_id) {
+                    const p = players.find(player => player.id === userRow.representative_player_id);
                     realName = p ? p.name : "Missing Player";
                 } else {
-                    realName = team.temp_name || "Pending...";
+                    realName = userRow.temp_name || "Pending...";
                 }
 
-                const username = team.username || "user_" + team.user_id.substring(0,4);
+                return {
+                    ...userRow,
+                    realName: realName,
+                    totalPoints: totalPoints
+                };
+            });
 
-                // 2. Create the row element
+            // 3. Sort by points (Highest first)
+            leaderboardData.sort((a, b) => b.totalPoints - a.totalPoints);
+
+            // 4. Render the rows
+            leaderboardData.forEach((user, index) => {
+                // Only show if they have a team
+                if (!user.player_ids || user.player_ids.length === 0) return;
+
                 const row = document.createElement('tr');
-                
-                // 3. Add the click event to the whole row
                 row.onclick = () => {
-                    const urlName = encodeURIComponent(username);
-                    window.location.href = `timovi.html?id=${team.user_id}&name=${urlName}`;
+                    window.location.href = `timovi.html?id=${user.user_id}&name=${encodeURIComponent(user.username)}`;
                 };
 
-                // 4. Set the internal HTML
                 row.innerHTML = `
                     <td>${index + 1}</td>
-                    <td><strong>${username}</strong></td>
-                    <td>${realName}</td>
-                    <td class="points">0.0</td>
+                    <td><strong>${user.username || 'user'}</strong></td>
+                    <td>${user.realName}</td>
+                    <td class="points">${user.totalPoints.toFixed(1)}</td>
                 `;
-
                 tbody.appendChild(row);
             });
         }
