@@ -137,25 +137,36 @@
 
             showStatus("Finding active players...");
 
+            // 1. Fetch both ID and Name for active players
             const { data: players, error: pErr } = await mySupabase
                 .from('players')
-                .select('id')
+                .select('id, name') // Now selecting the name too
                 .eq('is_playing', true);
 
             if (pErr) return showStatus("Player Fetch Error: " + pErr.message, true);
 
+            if (!players || players.length === 0) {
+                return showStatus("No active players found.", true);
+            }
+
+            // 2. Prepare the rows including the player_name
             const scoreRows = players.map(p => ({
                 player_id: p.id,
+                player_name: p.name, // Added this field
                 round_number: parseInt(roundNum),
                 points: 0.0
             }));
 
             showStatus(`Preparing ${scoreRows.length} scorecards...`);
             
+            // 3. Insert into player_scores
             const { error: insertErr } = await mySupabase.from('player_scores').insert(scoreRows);
 
-            if (insertErr) showStatus("Initialization Error: " + insertErr.message, true);
-            else showStatus(`✅ Scorecard ready for Round ${roundNum}!`);
+            if (insertErr) {
+                showStatus("Initialization Error: " + insertErr.message, true);
+            } else {
+                showStatus(`✅ Scorecard ready for Round ${roundNum}! Check your Supabase table.`);
+            }
         }
 
         // Run security check on load
