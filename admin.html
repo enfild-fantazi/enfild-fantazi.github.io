@@ -105,43 +105,28 @@
             const roundNum = document.getElementById('round-num-snapshot').value;
             if (!roundNum) return alert("Please enter a round number.");
             
-            showStatus("Calculating current market prices for snapshot...");
+            showStatus("Fetching current rosters...");
 
-            // 1. Fetch current teams and all players to get their CURRENT costs
-            const { data: currentTeams } = await mySupabase.from('user_teams').select('*');
-            const { data: allPlayers } = await mySupabase.from('players').select('*');
-            const { data: scores } = await mySupabase.from('player_scores').select('*');
+            const { data: currentTeams, error: fetchErr } = await mySupabase
+                .from('user_teams')
+                .select('user_id, username, player_ids');
 
-            // 2. We must calculate the dynamic cost of every player RIGHT NOW
-            // (This uses the same logic as your draft page)
-            const playersWithDynamicCosts = allPlayers.map(p => {
-                let runningCost = p.cost;
-                const playerHistory = scores.filter(s => s.player_id === p.id).sort((a,b) => a.round_number - b.round_number);
-                playerHistory.forEach(s => {
-                    runningCost += getGain(s.points, runningCost);
-                });
-                return { id: p.id, currentCost: runningCost };
-            });
+            if (fetchErr) return showStatus("Fetch Error: " + fetchErr.message, true);
 
-            // 3. Prepare snapshot data with the "frozen" costs
-            const snapshotData = currentTeams.map(t => {
-                const costsAtTime = t.player_ids.map(pId => {
-                    const p = playersWithDynamicCosts.find(pd => pd.id === pId);
-                    return p ? p.currentCost : 0;
-                });
+            // Filter out empty teams
+            const validTeams = currentTeams.filter(t => t.player_ids && t.player_ids.length > 0);
 
-                return {
-                    user_id: t.user_id,
-                    username: t.username,
-                    player_ids: t.player_ids,
-                    player_costs_at_time: costsAtTime, // Saved for historical accuracy!
-                    round_number: parseInt(roundNum)
-                };
-            });
+            const snapshotData = validTeams.map(t => ({
+                user_id: t.user_id,
+                username: t.username,
+                player_ids: t.player_ids,
+                round_number: parseInt(roundNum)
+            }));
 
-            const { error } = await mySupabase.from('past_teams').insert(snapshotData);
-            if (error) showStatus("Error: " + error.message, true);
-            else showStatus(`✅ Round ${roundNum} archived with accurate costs!`);
+            const { error: insertErr } = await mySupabase.from('past_teams').insert(snapshotData);
+
+            if (insertErr) showStatus("Save Error: " + insertErr.message, true);
+            else showStatus(`✅ Round ${roundNum} rosters archived!`);
         }
 
         // --- 3. SCORE INITIALIZATION LOGIC ---
@@ -186,31 +171,6 @@
 
         // Run security check on load
         checkAdmin();
-    </script>
-
-    <div class="admin-section">
-        <h2>⚙️ Global League Settings</h2>
-        <p>Current Active Round: <strong id="display-current-round">...</strong></p>
-        <input type="number" id="new-round-input" placeholder="Set New Round">
-        <button class="btn" style="background: #2d3748;" onclick="updateGlobalRound()">Update Round Number</button>
-    </div>
-
-    <script>
-        async function updateGlobalRound() {
-            const newVal = document.getElementById('new-round-input').value;
-            if(!newVal) return;
-
-            const { error } = await mySupabase
-                .from('settings')
-                .update({ value: parseInt(newVal) })
-                .eq('key', 'current_round');
-
-            if (error) alert("Error: " + error.message);
-            else {
-                alert("League Round updated to " + newVal);
-                location.reload();
-            }
-        }
     </script>
 </body>
 </html>

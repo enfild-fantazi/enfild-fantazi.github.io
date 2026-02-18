@@ -6,188 +6,273 @@
     <title>Enfild Fantazi | Moj tim</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; text-align: center; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; text-align: center; color: #333; }
         
-        /* Header & Budget UI */
-        .stats-bar { 
-            background: #2d3748; color: white; padding: 20px; 
-            border-radius: 15px; margin-bottom: 20px; position: sticky; top: 10px; z-index: 100;
-            display: flex; justify-content: space-around; align-items: center;
+        /* Navigation */
+        .home-btn { 
+            position: absolute; top: 20px; left: 20px; 
+            padding: 10px 15px; background: #e24a4a; color: white; 
+            text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 0.9rem;
         }
-        .budget-val { font-size: 1.5rem; font-weight: 800; color: #2ecc71; }
 
-        /* Grid */
-        .player-grid { 
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); 
-            gap: 20px; margin-top: 20px; 
+        /* Budget & Timer Header */
+        header { margin-top: 40px; }
+        #deadline-timer { color: #e74c3c; font-weight: bold; margin-bottom: 10px; font-size: 1.1rem; }
+        #budget-display { 
+            font-size: 1.5rem; margin: 20px; font-weight: bold; 
+            background: white; display: inline-block; padding: 15px 30px; 
+            border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
         }
+
+        /* Team Slots */
+        .sprite-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 30px; min-height: 250px; }
         .player-card { 
-            background: white; border-radius: 15px; padding: 15px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 2px solid transparent;
-            transition: 0.2s; cursor: pointer;
+            background: white; padding: 20px; border-radius: 15px; 
+            width: 170px; position: relative; border: 2px solid #eee;
+            transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
         }
-        .player-card.selected { border-color: #4a90e2; background: #ebf4ff; }
-        .player-name { font-weight: bold; font-size: 1.1rem; display: block; margin-bottom: 10px; }
-        .price-tag { color: #4a5568; font-weight: 600; }
+        .remove-btn { 
+            position: absolute; top: -10px; right: -10px; 
+            background: #ff4d4d; color: white; border-radius: 50%; 
+            width: 28px; height: 28px; cursor: pointer; border: none; font-weight: bold; 
+        }
+        .add-btn { 
+            width: 170px; height: 210px; border: 3px dashed #cbd5e0; 
+            border-radius: 15px; cursor: pointer; display: flex; 
+            align-items: center; justify-content: center; font-size: 3rem; color: #a0aec0;
+        }
+        .add-btn:hover { border-color: #4a90e2; color: #4a90e2; }
 
-        .btn-save { 
-            margin-top: 30px; padding: 15px 40px; background: #4a90e2; 
-            color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;
+        /* Inputs */
+        select { width: 100%; margin-top: 15px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; }
+        .cost-tag { margin-top: 15px; font-size: 0.95rem; line-height: 1.4; }
+        .cost-tag strong { color: #2d3748; display: block; margin-bottom: 4px; }
+
+        /* Save Button */
+        .save-btn { 
+            margin-top: 50px; padding: 18px 50px; background: #3ecf8e; 
+            color: white; border: none; border-radius: 10px; 
+            font-size: 1.2rem; cursor: pointer; font-weight: bold; 
+            transition: background 0.2s; box-shadow: 0 4px 14px rgba(62, 207, 142, 0.4);
         }
+        .save-btn:disabled { background: #cbd5e0 !important; cursor: not-allowed; box-shadow: none; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="stats-bar">
-        <div>
-            <span style="font-size: 0.8rem; color: #a0aec0; display: block;">AVAILABLE CREDITS</span>
-            <span id="credit-display" class="budget-val">Loading...</span>
+    <a href="index.html" class="home-btn">Nazad</a>
+
+    <header>
+        <h1>Moj tim</h1>
+        <div id="deadline-timer">Checking deadline...</div>
+        <div id="budget-display">
+            Remaining: <span id="current-credits">0.0</span> / <span id="total-credits">0.0</span>
         </div>
-        <button class="btn-save" onclick="saveTeam()">Save Team</button>
-    </div>
+    </header>
 
-    <div id="player-grid" class="player-grid">
+    <div class="sprite-container" id="team-slots">
         </div>
-</div>
 
-<script>
-    const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
-    const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    <button class="save-btn" id="main-save-btn" onclick="saveTeam()">Save Team</button>
 
-    let currentBudget = 0;
-    let selectedPlayerIds = [];
-    let dynamicPlayers = [];
+    <script>
+        // --- CONFIGURATION ---
+        const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
+        const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // --- 1. CORE MATH LOGIC ---
-    function getGain(points, cost) {
-        const raw = (points - cost) * 0.1;
-        let intermediate = Math.round(raw * 100) / 100; 
-        let finalGain = Math.round(intermediate * 10) / 10; 
+        // --- STATE ---
+        let allPlayers = [];
+        let userTeam = []; 
+        let totalCredits = 70.0;
+        let repPlayerId = null;
+        let DEADLINE = null;
 
-        // Floor logic: Cost cannot go below 4.0
-        if (finalGain < 0 && (cost + finalGain) < 4.0) {
-            finalGain = -(cost - 4.0);
-        }
-        return finalGain;
-    }
+        // --- INITIALIZATION ---
+        async function init() {
+            const { data: { session } } = await mySupabase.auth.getSession();
+            if (!session) { window.location.href = "login.html"; return; }
 
-    // --- 2. LOAD DATA & CALCULATE DYNAMIC VALUES ---
-    async function init() {
-        const { data: { user } } = await mySupabase.auth.getUser();
-
-        // 1. Fetch Manual Round Number from 'settings' table
-        const { data: settings } = await mySupabase
-            .from('settings')
-            .select('value')
-            .eq('key', 'current_round')
-            .single();
-        
-        // This is the round the users are currently drafting for
-        const manualRound = settings ? settings.value : 1;
-
-        // 2. Fetch data, but FILTER scores and history by your manual round
-        // We only want scores from PREVIOUS rounds to affect current costs
-        const { data: players } = await mySupabase.from('players').select('*');
-        
-        const { data: scores } = await mySupabase.from('player_scores')
-            .select('*')
-            .lt('round_number', manualRound) // "Less Than" - only rounds already finished
-            .order('round_number', { ascending: true });
-
-        const { data: history } = await mySupabase.from('past_teams')
-            .select('*')
-            .eq('user_id', user.id)
-            .lt('round_number', manualRound); // Only historical gains already processed
-
-        const { data: currentTeamRow } = await mySupabase.from('user_teams')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
-
-        // --- A. Calculate Dynamic Player Costs (Limited by manualRound) ---
-        dynamicPlayers = players.map(p => {
-            let runningCost = p.cost;
-            const playerScores = scores.filter(s => s.player_id === p.id);
+            // 1. Fetch Deadline from 'settings' table
+            const { data: deadlineData } = await mySupabase
+                .from('settings')
+                .select('value')
+                .eq('key', 'draft_deadline')
+                .single();
             
-            playerScores.forEach(s => {
-                runningCost += getGain(s.points, runningCost);
-            });
-            return { ...p, currentCost: runningCost };
-        });
+            if (deadlineData) DEADLINE = new Date(deadlineData.value);
 
-        // --- B. Calculate User Budget (Limited by manualRound) ---
-        let totalGainFromHistory = 0;
-        history.forEach(round => {
-            round.player_ids.forEach((pId, index) => {
-                const costAtTime = round.player_costs_at_time[index];
-                const score = scores.find(s => s.player_id === pId && s.round_number === round.round_number);
-                if (score) {
-                    totalGainFromHistory += getGain(score.points, costAtTime);
+            // 2. Fetch all players, sorted by cost (highest first)
+            const { data: players } = await mySupabase
+                .from('players')
+                .select('*')
+                .order('cost', { ascending: false });
+            allPlayers = players || [];
+
+            // 3. Fetch user's existing data
+            const { data: userData } = await mySupabase
+                .from('user_teams')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .single();
+
+            if (userData) {
+                totalCredits = userData.total_credits || 70.0;
+                repPlayerId = userData.representative_player_id;
+                if (userData.player_ids) {
+                    userTeam = userData.player_ids.map(id => allPlayers.find(p => p.id === id)).filter(p => p);
                 }
-            });
-        });
+            }
 
-        currentBudget = (currentTeamRow.credits || 70) + totalGainFromHistory;
-        selectedPlayerIds = currentTeamRow.player_ids || [];
+            // Start with 3 empty slots if no team exists
+            if (userTeam.length === 0) userTeam = [null, null, null];
 
-        renderUI();
-    }
-
-    // --- 3. RENDER UI ---
-    function renderUI() {
-        const grid = document.getElementById('player-grid');
-        grid.innerHTML = '';
-
-        // Update Budget Display
-        const spent = dynamicPlayers
-            .filter(p => selectedPlayerIds.includes(p.id))
-            .reduce((sum, p) => sum + p.currentCost, 0);
-        
-        document.getElementById('credit-display').innerText = (currentBudget - spent).toFixed(1);
-
-        // Render Cards
-        dynamicPlayers.forEach(p => {
-            const isSelected = selectedPlayerIds.includes(p.id);
-            const card = document.createElement('div');
-            card.className = `player-card ${isSelected ? 'selected' : ''}`;
-            card.innerHTML = `
-                <span class="player-name">${p.name}</span>
-                <div class="price-tag">${p.currentCost.toFixed(1)} Credits</div>
-            `;
-            card.onclick = () => togglePlayer(p.id);
-            grid.appendChild(card);
-        });
-    }
-
-    function togglePlayer(id) {
-        if (selectedPlayerIds.includes(id)) {
-            selectedPlayerIds = selectedPlayerIds.filter(pid => pid !== id);
-        } else {
-            // Check budget before adding
-            const p = dynamicPlayers.find(p => p.id === id);
-            const spent = dynamicPlayers.filter(p => selectedPlayerIds.includes(p.id)).reduce((sum, p) => sum + p.currentCost, 0);
-            if (spent + p.currentCost > currentBudget) return alert("Not enough credits!");
-            
-            selectedPlayerIds.push(id);
+            renderTeam();
+            startTimer();
         }
-        renderUI();
-    }
 
-    async function saveTeam() {
-        const { data: { user } } = await mySupabase.auth.getUser();
-        const { error } = await mySupabase
-            .from('user_teams')
-            .update({ player_ids: selectedPlayerIds })
-            .eq('user_id', user.id);
+        // --- LOGIC ---
+        function isLocked() {
+            if (!DEADLINE) return false;
+            return new Date() > DEADLINE;
+        }
 
-        if (error) alert("Error saving: " + error.message);
-        else alert("Team saved successfully!");
-    }
+        function renderTeam() {
+            const locked = isLocked();
+            const container = document.getElementById('team-slots');
+            const saveBtn = document.getElementById('main-save-btn');
+            container.innerHTML = '';
+            let spent = 0;
 
-    init();
-</script>
+            userTeam.forEach((selectedPlayer, index) => {
+                const card = document.createElement('div');
+                card.className = 'player-card';
+
+                // "X" button
+                if (userTeam.length > 3 && !locked) {
+                    const xBtn = document.createElement('button');
+                    xBtn.innerText = '×';
+                    xBtn.className = 'remove-btn';
+                    xBtn.onclick = () => { userTeam.splice(index, 1); renderTeam(); };
+                    card.appendChild(xBtn);
+                }
+
+                const select = document.createElement('select');
+                select.disabled = locked;
+                select.innerHTML = `<option value="">-- Select Player --</option>`;
+                
+                allPlayers.forEach(p => {
+                    const isTaken = userTeam.some((ut, i) => ut && ut.id === p.id && i !== index);
+                    const isSelf = p.id === repPlayerId;
+
+                    if (!isTaken && !isSelf) {
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        
+                        // ADDED: Check if player is NOT playing
+                        let statusTag = p.is_playing ? "" : "[NE IGRA] ";
+                        opt.text = `${statusTag}${p.name} (${p.cost.toFixed(1)})`;
+
+                        if (selectedPlayer && selectedPlayer.id === p.id) opt.selected = true;
+                        select.appendChild(opt);
+                    }
+                });
+
+                select.onchange = (e) => {  
+                    const p = allPlayers.find(pl => pl.id == e.target.value);
+                    userTeam[index] = p || null;
+                    renderTeam();
+                };
+
+                card.appendChild(select);
+
+                if (selectedPlayer) {
+                    spent += selectedPlayer.cost;
+                    const info = document.createElement('div');
+                    info.className = 'cost-tag';
+
+                    // ADDED: Check for red color logic
+                    const nameStyle = selectedPlayer.is_playing ? "" : "color: #ff4d4d;";
+                    const statusText = selectedPlayer.is_playing ? "" : "<small>[NE IGRA]</small> ";
+
+                    info.innerHTML = `
+                        <strong style="${nameStyle}">${statusText}${selectedPlayer.name}</strong>
+                        Cost: ${selectedPlayer.cost.toFixed(1)}
+                    `;
+                    card.appendChild(info);
+                }
+                container.appendChild(card);
+            });
+
+            // "+" button
+            if (userTeam.length < 5 && !locked) {
+                const addBtn = document.createElement('div');
+                addBtn.className = 'add-btn';
+                addBtn.innerText = '+';
+                addBtn.onclick = () => { userTeam.push(null); renderTeam(); };
+                container.appendChild(addBtn);
+            }
+
+            // Update UI Lock State
+            if (locked) {
+                saveBtn.disabled = true;
+                saveBtn.innerText = "Editovanje zatvoreno";
+            }
+
+            // Update Credits (Floating point fix)
+            const remaining = (totalCredits - spent).toFixed(1);
+            document.getElementById('total-credits').innerText = totalCredits.toFixed(1);
+            const creditSpan = document.getElementById('current-credits');
+            creditSpan.innerText = remaining;
+            creditSpan.style.color = (remaining < 0) ? '#e74c3c' : '#2ecc71';
+        }
+
+        function startTimer() {
+            function update() {
+                const timerDiv = document.getElementById('deadline-timer');
+                if (!DEADLINE) { timerDiv.innerText = ""; return; }
+                
+                const now = new Date();
+                const diff = DEADLINE - now;
+
+                if (diff <= 0) {
+                    timerDiv.innerText = "EDITOVANJE TIMOVA ZATVORENO";
+                    renderTeam(); // Re-render to trigger lock
+                } else {
+                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+                    timerDiv.innerText = `Deadline in: ${hours}h ${mins}m ${secs}s`;
+                }
+            }
+            setInterval(update, 1000);
+            update();
+        }
+
+        async function saveTeam() {
+            if (isLocked()) return alert("Deadline passed!");
+
+            const spent = userTeam.reduce((sum, p) => sum + (p ? p.cost : 0), 0);
+            const playerIds = userTeam.map(p => p ? p.id : null).filter(id => id !== null);
+
+            if (playerIds.length < 3) return alert("Select at least 3 players!");
+            if (spent > totalCredits + 0.001) return alert("Over budget!");
+
+            const { data: { session } } = await mySupabase.auth.getSession();
+            
+            // UPSERT: Overwrites the record for this user_id
+            const { error } = await mySupabase
+                .from('user_teams')
+                .upsert({
+                    user_id: session.user.id,
+                    player_ids: playerIds
+                }, { onConflict: 'user_id' });
+
+            if (error) alert("Error: " + error.message);
+            else alert("Team successfully saved!");
+        }
+
+        init();
+    </script>
 </body>
 </html>
