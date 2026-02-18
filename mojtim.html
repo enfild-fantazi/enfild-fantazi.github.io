@@ -88,16 +88,30 @@
         let DEADLINE = null;
         let manualRound = 1;
 
-        // --- HELPER: MATH LOGIC ---
+        // Updated to Banker's Rounding (Round to Even)
         function calculateGain(points, cost) {
             const raw = (points - cost) * 0.1;
-            let intermediate = Math.round(raw * 100) / 100; 
-            let finalGain = Math.round(intermediate * 10) / 10; 
+            
+            // Internal Banker's Rounding logic
+            const roundToEven = (num) => {
+                const d = 1; // 1 decimal place
+                const m = Math.pow(10, d);
+                const n = +(num * m).toFixed(8); // Handle floating point precision
+                const i = Math.floor(n), f = n - i;
+                const e = 1e-8; // tiny epsilon for precision
+                
+                const r = (f > 0.5 - e && f < 0.5 + e) ?
+                        ((i % 2 === 0) ? i : i + 1) : Math.round(n);
+                return r / m;
+            };
+
+            let finalGain = roundToEven(raw);
 
             // Floor logic: Cost cannot go below 4.0
             if (finalGain < 0 && (cost + finalGain) < 4.0) {
                 finalGain = -(cost - 4.0);
             }
+            
             return finalGain;
         }
 
