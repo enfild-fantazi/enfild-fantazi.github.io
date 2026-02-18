@@ -102,85 +102,75 @@
         // --- 2. SNAPSHOT LOGIC ---
         
         async function snapshotTeams() {
-            const roundNum = document.getElementById('round-num-snapshot').value;
-            if (!roundNum) return alert("Please enter a round number.");
+            const roundNumInput = document.getElementById('round-num-snapshot').value;
+            if (!roundNumInput) return alert("Please enter a round number.");
+            const roundNum = parseInt(roundNumInput);
             
             showStatus("Calculating current market prices for snapshot...");
 
-            // 1. Fetch current teams and all players to get their CURRENT costs
-            const { data: currentTeams } = await mySupabase.from('user_teams').select('*');
-            const { data: allPlayers } = await mySupabase.from('players').select('*');
-            const { data: scores } = await mySupabase.from('player_scores').select('*');
+            try {
+                // 1. Fetch data
+                const { data: currentTeams, error: teamErr } = await mySupabase.from('user_teams').select('*');
+                if (teamErr) throw teamErr;
 
-            // 2. We must calculate the dynamic cost of every player RIGHT NOW
-            // (This uses the same logic as your draft page)
-            const playersWithDynamicCosts = allPlayers.map(p => {
-                let runningCost = p.cost;
-                const playerHistory = scores.filter(s => s.player_id === p.id).sort((a,b) => a.round_number - b.round_number);
-                playerHistory.forEach(s => {
-                    runningCost += getGain(s.points, runningCost);
-                });
-                return { id: p.id, currentCost: runningCost };
-            });
+                const { data: allPlayers, error: playerErr } = await mySupabase.from('players').select('*');
+                if (playerErr) throw playerErr;
+                
+                // Fetch scores for rounds BEFORE this snapshot to determine the starting cost
+                const { data: scores, error: scoreErr } = await mySupabase.from('player_scores')
+                    .select('*')
+                    .lt('round_number', roundNum);
+                if (scoreErr) throw scoreErr;
 
-            // 3. Prepare snapshot data with the "frozen" costs
-            const snapshotData = currentTeams.map(t => {
-                const costsAtTime = t.player_ids.map(pId => {
-                    const p = playersWithDynamicCosts.find(pd => pd.id === pId);
-                    return p ? p.currentCost : 0;
-                });
-
-                return {
-                    user_id: t.user_id,
-                    username: t.username,
-                    player_ids: t.player_ids,
-                    player_costs_at_time: costsAtTime, // Saved for historical accuracy!
-                    round_number: parseInt(roundNum)
+                // 2. Internal math helper (English)
+                const getGainLocal = (points, cost) => {
+                    const raw = (points - cost) * 0.1;
+                    let inter = Math.round(raw * 100) / 100;
+                    let final = Math.round(inter * 10) / 10;
+                    // Floor logic: 4.0 minimum
+                    if (final < 0 && (cost + final) < 4.0) final = -(cost - 4.0);
+                    return final;
                 };
-            });
 
-            const { error } = await mySupabase.from('past_teams').insert(snapshotData);
-            if (error) showStatus("Error: " + error.message, true);
-            else showStatus(`✅ Round ${roundNum} archived with accurate costs!`);
-        }
+                // 3. Calculate dynamic prices
+                const playersWithPrices = allPlayers.map(p => {
+                    let runningCost = p.cost;
+                    const pScores = (scores || []).filter(s => s.player_id === p.id).sort((a,b) => a.round_number - b.round_number);
+                    pScores.forEach(s => {
+                        runningCost += getGainLocal(s.points, runningCost);
+                    });
+                    return { id: p.id, currentCost: runningCost };
+                });
 
-        // --- 3. SCORE INITIALIZATION LOGIC ---
-        
-        async function initializeScores() {
-            const roundNum = document.getElementById('round-num-scores').value;
-            if (!roundNum) return alert("Please enter a round number.");
+                // 4. Prepare snapshot
+                const snapshotData = currentTeams.map(t => {
+                    // Filter out any null IDs to prevent errors
+                    const validIds = (t.player_ids || []).filter(id => id !== null);
+                    
+                    const costsAtTime = validIds.map(pId => {
+                        const found = playersWithPrices.find(pd => pd.id === pId);
+                        return found ? found.currentCost : 0;
+                    });
 
-            showStatus("Finding active players...");
+                    return {
+                        user_id: t.user_id,
+                        username: t.username,
+                        player_ids: validIds,
+                        player_costs_at_time: costsAtTime, 
+                        round_number: roundNum
+                    };
+                });
 
-            // 1. Fetch both ID and Name for active players
-            const { data: players, error: pErr } = await mySupabase
-                .from('players')
-                .select('id, name') // Now selecting the name too
-                .eq('is_playing', true);
+                if (snapshotData.length === 0) throw new Error("No teams found to snapshot.");
 
-            if (pErr) return showStatus("Player Fetch Error: " + pErr.message, true);
+                // 5. Insert to history
+                const { error: insertErr } = await mySupabase.from('past_teams').insert(snapshotData);
+                if (insertErr) throw insertErr;
 
-            if (!players || players.length === 0) {
-                return showStatus("No active players found.", true);
-            }
-
-            // 2. Prepare the rows including the player_name
-            const scoreRows = players.map(p => ({
-                player_id: p.id,
-                player_name: p.name, // Added this field
-                round_number: parseInt(roundNum),
-                points: 0.0
-            }));
-
-            showStatus(`Preparing ${scoreRows.length} scorecards...`);
-            
-            // 3. Insert into player_scores
-            const { error: insertErr } = await mySupabase.from('player_scores').insert(scoreRows);
-
-            if (insertErr) {
-                showStatus("Initialization Error: " + insertErr.message, true);
-            } else {
-                showStatus(`✅ Scorecard ready for Round ${roundNum}! Check your Supabase table.`);
+                showStatus(`✅ Round ${roundNum} successfully saved to history!`);
+            } catch (err) {
+                console.error("Snapshot Error:", err);
+                showStatus("Error: " + err.message, true);
             }
         }
 
