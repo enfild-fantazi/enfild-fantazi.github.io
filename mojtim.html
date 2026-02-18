@@ -70,8 +70,7 @@
         </div>
     </header>
 
-    <div class="sprite-container" id="team-slots">
-        </div>
+    <div class="sprite-container" id="team-slots"></div>
 
     <button class="save-btn" id="main-save-btn" onclick="saveTeam()">Save Team</button>
 
@@ -84,47 +83,75 @@
         // --- STATE ---
         let allPlayers = [];
         let userTeam = []; 
-        let totalCredits = 70.0;
+        let totalCredits = 70.0; // This will be dynamic
         let repPlayerId = null;
         let DEADLINE = null;
+        let manualRound = 1;
+
+        // --- HELPER: MATH LOGIC ---
+        function calculateGain(points, cost) {
+            const raw = (points - cost) * 0.1;
+            let intermediate = Math.round(raw * 100) / 100; 
+            let finalGain = Math.round(intermediate * 10) / 10; 
+
+            // Floor logic: Cost cannot go below 4.0
+            if (finalGain < 0 && (cost + finalGain) < 4.0) {
+                finalGain = -(cost - 4.0);
+            }
+            return finalGain;
+        }
 
         // --- INITIALIZATION ---
         async function init() {
             const { data: { session } } = await mySupabase.auth.getSession();
             if (!session) { window.location.href = "login.html"; return; }
 
-            // 1. Fetch Deadline from 'settings' table
-            const { data: deadlineData } = await mySupabase
-                .from('settings')
-                .select('value')
-                .eq('key', 'draft_deadline')
-                .single();
+            // 1. Fetch Manual Round Number & Deadline from 'settings'
+            const { data: settingsData } = await mySupabase.from('settings').select('*');
             
-            if (deadlineData) DEADLINE = new Date(deadlineData.value);
+            const roundSetting = settingsData.find(s => s.key === 'current_round');
+            manualRound = roundSetting ? parseInt(roundSetting.value) : 1;
 
-            // 2. Fetch all players, sorted by cost (highest first)
-            const { data: players } = await mySupabase
-                .from('players')
-                .select('*')
-                .order('cost', { ascending: false });
-            allPlayers = players || [];
+            const deadlineSetting = settingsData.find(s => s.key === 'draft_deadline');
+            if (deadlineSetting) DEADLINE = new Date(deadlineSetting.value);
 
-            // 3. Fetch user's existing data
-            const { data: userData } = await mySupabase
-                .from('user_teams')
-                .select('*')
-                .eq('user_id', session.user.id)
-                .single();
+            // 2. Fetch all raw data for calculations
+            const { data: rawPlayers } = await mySupabase.from('players').select('*');
+            const { data: allScores } = await mySupabase.from('player_scores').select('*').lt('round_number', manualRound);
+            const { data: userHistory } = await mySupabase.from('past_teams').select('*').eq('user_id', session.user.id).lt('round_number', manualRound);
+            const { data: userData } = await mySupabase.from('user_teams').select('*').eq('user_id', session.user.id).single();
+
+            // 3. Calculate DYNAMIC Player Costs
+            allPlayers = rawPlayers.map(p => {
+                let runningCost = p.cost;
+                const pScores = allScores.filter(s => s.player_id === p.id).sort((a,b) => a.round_number - b.round_number);
+                pScores.forEach(s => {
+                    runningCost += calculateGain(s.points, runningCost);
+                });
+                return { ...p, cost: runningCost };
+            }).sort((a, b) => b.cost - a.cost);
+
+            // 4. Calculate DYNAMIC User Budget
+            let totalGainFromHistory = 0;
+            userHistory.forEach(round => {
+                round.player_ids.forEach((pId, index) => {
+                    const costAtTime = round.player_costs_at_time[index];
+                    const score = allScores.find(s => s.player_id === pId && s.round_number === round.round_number);
+                    if (score) {
+                        totalGainFromHistory += calculateGain(score.points, costAtTime);
+                    }
+                });
+            });
 
             if (userData) {
-                totalCredits = userData.total_credits || 70.0;
+                // Budget is original credits (usually 70 or 100) + gains from every previous round
+                totalCredits = (userData.total_credits || 70.0) + totalGainFromHistory;
                 repPlayerId = userData.representative_player_id;
                 if (userData.player_ids) {
                     userTeam = userData.player_ids.map(id => allPlayers.find(p => p.id === id)).filter(p => p);
                 }
             }
 
-            // Start with 3 empty slots if no team exists
             if (userTeam.length === 0) userTeam = [null, null, null];
 
             renderTeam();
@@ -148,7 +175,6 @@
                 const card = document.createElement('div');
                 card.className = 'player-card';
 
-                // "X" button
                 if (userTeam.length > 3 && !locked) {
                     const xBtn = document.createElement('button');
                     xBtn.innerText = '×';
@@ -168,11 +194,8 @@
                     if (!isTaken && !isSelf) {
                         const opt = document.createElement('option');
                         opt.value = p.id;
-                        
-                        // ADDED: Check if player is NOT playing
                         let statusTag = p.is_playing ? "" : "[NE IGRA] ";
                         opt.text = `${statusTag}${p.name} (${p.cost.toFixed(1)})`;
-
                         if (selectedPlayer && selectedPlayer.id === p.id) opt.selected = true;
                         select.appendChild(opt);
                     }
@@ -190,8 +213,6 @@
                     spent += selectedPlayer.cost;
                     const info = document.createElement('div');
                     info.className = 'cost-tag';
-
-                    // ADDED: Check for red color logic
                     const nameStyle = selectedPlayer.is_playing ? "" : "color: #ff4d4d;";
                     const statusText = selectedPlayer.is_playing ? "" : "<small>[NE IGRA]</small> ";
 
@@ -204,7 +225,6 @@
                 container.appendChild(card);
             });
 
-            // "+" button
             if (userTeam.length < 5 && !locked) {
                 const addBtn = document.createElement('div');
                 addBtn.className = 'add-btn';
@@ -213,31 +233,28 @@
                 container.appendChild(addBtn);
             }
 
-            // Update UI Lock State
             if (locked) {
                 saveBtn.disabled = true;
                 saveBtn.innerText = "Editovanje zatvoreno";
             }
 
-            // Update Credits (Floating point fix)
             const remaining = (totalCredits - spent).toFixed(1);
             document.getElementById('total-credits').innerText = totalCredits.toFixed(1);
             const creditSpan = document.getElementById('current-credits');
             creditSpan.innerText = remaining;
-            creditSpan.style.color = (remaining < 0) ? '#e74c3c' : '#2ecc71';
+            creditSpan.style.color = (parseFloat(remaining) < -0.01) ? '#e74c3c' : '#2ecc71';
         }
 
         function startTimer() {
             function update() {
                 const timerDiv = document.getElementById('deadline-timer');
                 if (!DEADLINE) { timerDiv.innerText = ""; return; }
-                
                 const now = new Date();
                 const diff = DEADLINE - now;
 
                 if (diff <= 0) {
                     timerDiv.innerText = "EDITOVANJE TIMOVA ZATVORENO";
-                    renderTeam(); // Re-render to trigger lock
+                    if (!saveBtnDisabledState) renderTeam(); 
                 } else {
                     const hours = Math.floor(diff / (1000 * 60 * 60));
                     const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -255,12 +272,14 @@
             const spent = userTeam.reduce((sum, p) => sum + (p ? p.cost : 0), 0);
             const playerIds = userTeam.map(p => p ? p.id : null).filter(id => id !== null);
 
+            // RE-ADDED VALIDATIONS
             if (playerIds.length < 3) return alert("Select at least 3 players!");
-            if (spent > totalCredits + 0.001) return alert("Over budget!");
+            if (spent > totalCredits + 0.05) {
+                return alert(`Over budget!`);
+            }
 
             const { data: { session } } = await mySupabase.auth.getSession();
             
-            // UPSERT: Overwrites the record for this user_id
             const { error } = await mySupabase
                 .from('user_teams')
                 .upsert({
