@@ -135,7 +135,7 @@
             const { data: userHistory } = await mySupabase.from('past_teams').select('*').eq('user_id', session.user.id).lt('round_number', manualRound);
             const { data: userData } = await mySupabase.from('user_teams').select('*').eq('user_id', session.user.id).single();
 
-            // 3. Calculate DYNAMIC Player Costs
+            // 3. Calculate DYNAMIC Player Costs and Sort
             allPlayers = rawPlayers.map(p => {
                 let runningCost = p.cost;
                 const pScores = allScores.filter(s => s.player_id === p.id).sort((a,b) => a.round_number - b.round_number);
@@ -143,7 +143,14 @@
                     runningCost += calculateGain(s.points, runningCost);
                 });
                 return { ...p, cost: runningCost };
-            }).sort((a, b) => b.cost - a.cost);
+            }).sort((a, b) => {
+                // Level 1: Sort by playing status (Playing first)
+                if (a.is_playing !== b.is_playing) {
+                    return b.is_playing - a.is_playing; 
+                }
+                // Level 2: Sort by cost (Highest first)
+                return b.cost - a.cost;
+            });
 
             // 4. Calculate DYNAMIC User Budget
             let totalGainFromHistory = 0;
