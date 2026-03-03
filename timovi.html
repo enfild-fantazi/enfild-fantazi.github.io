@@ -166,37 +166,49 @@
         }
 
         function showRound(rNum) {
-            // 1. Update Tab UI Appearance
+            // 1. UI Updates
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             const activeBtn = document.getElementById(`btn-r-${rNum}`);
             if (activeBtn) activeBtn.classList.add('active');
 
-            // 2. Identify the Containers
-            const display = document.getElementById('team-display'); // This is your Grid
-            const container = document.querySelector('.container');  // This is the White Box
+            const display = document.getElementById('team-display');
+            const container = document.querySelector('.container');
             
-            // 3. Cleanup: Clear the grid and remove any previous footer
             display.innerHTML = '';
             const oldFooter = document.querySelector('.team-footer');
             if (oldFooter) oldFooter.remove();
 
-            // 4. Find the specific round data
+            // 2. Find the specific round snapshot
             const roundData = allHistory.find(h => h.round_number === rNum);
             if (!roundData) return;
 
             let totalPoints = 0;
             let totalGain = 0;
 
-            // 5. Loop through players and create cards
-            roundData.player_ids.forEach(pId => {
+            // 3. Loop using index to access historical costs
+            // ... inside the roundData.player_ids loop ...
+
+            roundData.player_ids.forEach((pId, index) => {
                 const player = allPlayers.find(p => p.id == pId);
                 if (!player) return;
 
-                const score = allScores.find(s => s.player_id == pId && s.round_number == rNum);
-                const pts = score ? score.points : 0.0;
+                const historicalCost = roundData.player_costs_at_time[index];
                 
-                // Use the math function we built with the 4.0 floor
-                const gain = parseFloat(calculateGain(pts, player.cost));
+                // Find the score entry
+                const score = allScores.find(s => s.player_id == pId && s.round_number == rNum);
+                
+                let pts = 0.0;
+                let gain = 0.0;
+
+                // NEW LOGIC: Only calculate gain if the score entry exists
+                if (score) {
+                    pts = score.points;
+                    gain = parseFloat(calculateGain(pts, historicalCost));
+                } else {
+                    // Player did not play: points and gain remain 0.0
+                    pts = 0.0;
+                    gain = 0.0;
+                }
 
                 totalPoints += pts;
                 totalGain += gain;
@@ -205,19 +217,20 @@
                 card.className = 'player-card';
                 card.innerHTML = `
                     <span class="player-name">${player.name}</span>
-                    <div class="stat-line"><span>Cost</span><span class="stat-val">${player.cost.toFixed(1)}</span></div>
+                    <div class="stat-line"><span>Cost</span><span class="stat-val">${historicalCost.toFixed(1)}</span></div>
                     <div class="stat-line"><span>Points</span><span class="stat-val">${pts.toFixed(1)}</span></div>
                     <div class="stat-line">
                         <span>Credit Gain</span>
-                        <span class="stat-val ${gain >= 0 ? 'gain-positive' : 'gain-negative'}">
+                        <span class="stat-val ${gain >= 0 ? 'gain-positive' : gain < 0 ? 'gain-negative' : ''}">
                             ${gain >= 0 ? '+' : ''}${gain.toFixed(1)}
                         </span>
                     </div>
+                    ${!score ? '<div style="font-size: 0.7rem; color: #a0aec0; margin-top: 5px;">DNP (Did Not Play)</div>' : ''}
                 `;
                 display.appendChild(card);
             });
 
-            // 6. Create the Footer with corrected classes
+            // 4. Render the Footer
             const footer = document.createElement('div');
             footer.className = 'team-footer';
             footer.innerHTML = `
