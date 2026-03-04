@@ -109,47 +109,52 @@
             showStatus("Calculating current market prices for snapshot...");
 
             try {
-                // 1. Fetch data
-                const { data: currentTeams, error: teamErr } = await mySupabase.from('user_teams').select('*');
-                if (teamErr) throw teamErr;
+                const { data: currentTeams } = await mySupabase.from('user_teams').select('*');
+                const { data: allPlayers } = await mySupabase.from('players').select('*');
+                const { data: scores } = await mySupabase.from('player_scores').select('*').lt('round_number', roundNum);
 
-                const { data: allPlayers, error: playerErr } = await mySupabase.from('players').select('*');
-                if (playerErr) throw playerErr;
-                
-                // Fetch scores for rounds BEFORE this snapshot to determine the starting cost
-                const { data: scores, error: scoreErr } = await mySupabase.from('player_scores')
-                    .select('*')
-                    .lt('round_number', roundNum);
-                if (scoreErr) throw scoreErr;
-
-                // 2. Internal math helper (English)
-                const getGainLocal = (points, cost) => {
+                // 1. Banker's Rounding Helper (The exact same one from your draft page)
+                const getBankerGain = (points, cost) => {
                     const raw = (points - cost) * 0.1;
-                    let inter = Math.round(raw * 100) / 100;
-                    let final = Math.round(inter * 10) / 10;
+                    const d = 1; 
+                    const m = Math.pow(10, d);
+                    const n = +(raw * m).toFixed(8); 
+                    const i = Math.floor(n), f = n - i;
+                    const e = 1e-8;
+                    
+                    const r = (f > 0.5 - e && f < 0.5 + e) ?
+                            ((i % 2 === 0) ? i : i + 1) : Math.round(n);
+                    let finalGain = r / m;
+
                     // Floor logic: 4.0 minimum
-                    if (final < 0 && (cost + final) < 4.0) final = -(cost - 4.0);
-                    return final;
+                    if (finalGain < 0 && (cost + finalGain) < 4.0) {
+                        finalGain = -(cost - 4.0);
+                    }
+                    return finalGain;
                 };
 
-                // 3. Calculate dynamic prices
+                // 2. Calculate dynamic prices with precision cleaning
                 const playersWithPrices = allPlayers.map(p => {
                     let runningCost = p.cost;
                     const pScores = (scores || []).filter(s => s.player_id === p.id).sort((a,b) => a.round_number - b.round_number);
+                    
                     pScores.forEach(s => {
-                        runningCost += getGainLocal(s.points, runningCost);
+                        const gain = getBankerGain(s.points, runningCost);
+                        // We use parseFloat().toFixed(1) here to kill the .79999999997 issue
+                        runningCost = parseFloat((runningCost + gain).toFixed(1));
                     });
+                    
                     return { id: p.id, currentCost: runningCost };
                 });
 
-                // 4. Prepare snapshot
+                // 3. Prepare snapshot
                 const snapshotData = currentTeams.map(t => {
-                    // Filter out any null IDs to prevent errors
                     const validIds = (t.player_ids || []).filter(id => id !== null);
                     
                     const costsAtTime = validIds.map(pId => {
                         const found = playersWithPrices.find(pd => pd.id === pId);
-                        return found ? found.currentCost : 0;
+                        // Ensure the historical cost is also clean
+                        return found ? parseFloat(found.currentCost.toFixed(1)) : 0;
                     });
 
                     return {
@@ -161,13 +166,10 @@
                     };
                 });
 
-                if (snapshotData.length === 0) throw new Error("No teams found to snapshot.");
-
-                // 5. Insert to history
                 const { error: insertErr } = await mySupabase.from('past_teams').insert(snapshotData);
                 if (insertErr) throw insertErr;
 
-                showStatus(`✅ Round ${roundNum} successfully saved to history!`);
+                showStatus(`✅ Round ${roundNum} successfully saved with clean Banker's Rounding!`);
             } catch (err) {
                 console.error("Snapshot Error:", err);
                 showStatus("Error: " + err.message, true);
