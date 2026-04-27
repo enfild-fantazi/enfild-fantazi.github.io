@@ -6,6 +6,9 @@
     <title>Enfild Fantazi | Igraci</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        * {
+            box-sizing: border-box;
+        }
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
         .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 1000px; text-align: center; }
         .home-btn { 
@@ -33,6 +36,10 @@
         th, td { 
             white-space: nowrap; 
             padding: 12px 8px; /* Slightly tighter padding */
+        }
+
+        #th-wl {
+            min-width: 80px;
         }
 
         /* Target the W-L column specifically */
