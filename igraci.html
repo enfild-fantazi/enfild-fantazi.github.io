@@ -28,26 +28,79 @@
         
         .name-col { text-align: left; font-weight: bold; cursor: default; }
         .win-loss { font-weight: 600; color: #718096; }
+
+        /* Prevent column names and values from wrapping */
+        th, td { 
+            white-space: nowrap; 
+            padding: 12px 8px; /* Slightly tighter padding */
+        }
+
+        /* Target the W-L column specifically */
+        .win-loss {
+            white-space: nowrap;
+            letter-spacing: 0.5px; /* Adds a tiny bit of breathing room */
+        }
+
+        /* 1. The Container: Stays centered and doesn't leak */
+        .container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            width: 100%; 
+            max-width: 900px; 
+            box-sizing: border-box; 
+        }
+
+        /* 2. The Wrapper: Handles the mobile scroll without shrinking the PC view */
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 20px;
+        }
+
+        /* 3. The Table: Now it will take full width on PC again */
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            min-width: 500px; /* Ensures it doesn't get TOO squished on tiny screens */
+        }
+
+        /* 4. Keep your nowrap rules so text doesn't break */
+        th, td { 
+            padding: 15px; 
+            border-bottom: 1px solid #edf2f7; 
+            white-space: nowrap; 
+        }
+
+        /* 5. Mobile specific tweaks */
+        @media (max-width: 600px) {
+            .container { padding: 20px 15px; }
+            th, td { padding: 12px 8px; font-size: 0.85rem; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="index.html" class="home-btn">Nazad</a>
         <h1>Player Statistics</h1>
-        <table>
-            <thead>
-                <tr>
-                    <th class="name-col">Name</th>
-                    <th id="th-cost" onclick="handleSort('cost')">Cost</th>
-                    <th id="th-gp" onclick="handleSort('gp')">GP</th>
-                    <th id="th-avg" onclick="handleSort('avg')">Avg Fpt</th>
-                    <th id="th-wl" onclick="handleSort('wl')">W-L</th>
-                </tr>
-            </thead>
-            <tbody id="players-body">
-                <tr><td colspan="5">Loading players...</td></tr>
-            </tbody>
-        </table>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="name-col">Name</th>
+                        <th id="th-cost" onclick="handleSort('cost')">Cost</th>
+                        <th id="th-gp" onclick="handleSort('gp')">GP</th>
+                        <th id="th-avg" onclick="handleSort('avg')">Avg Fpt</th>
+                        <th id="th-wl" onclick="handleSort('wl')">W-L</th>
+                    </tr>
+                </thead>
+                <tbody id="players-body">
+                    <tr><td colspan="5">Loading players...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script>

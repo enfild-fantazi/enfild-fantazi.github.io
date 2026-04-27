@@ -32,6 +32,45 @@
         .credits { font-weight: bold; color: #2ecc71; }
         .gain-pos { color: #2ecc71; }
         .gain-neg { color: #e74c3c; }
+
+        /* 1. The Container: Stays centered and doesn't leak */
+        .container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            width: 100%; 
+            max-width: 900px; 
+            box-sizing: border-box; 
+        }
+
+        /* 2. The Wrapper: Handles the mobile scroll without shrinking the PC view */
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 20px;
+        }
+
+        /* 3. The Table: Now it will take full width on PC again */
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            min-width: 500px; /* Ensures it doesn't get TOO squished on tiny screens */
+        }
+
+        /* 4. Keep your nowrap rules so text doesn't break */
+        th, td { 
+            padding: 15px; 
+            border-bottom: 1px solid #edf2f7; 
+            white-space: nowrap; 
+        }
+
+        /* 5. Mobile specific tweaks */
+        @media (max-width: 600px) {
+            .container { padding: 20px 15px; }
+            th, td { padding: 12px 8px; font-size: 0.85rem; }
+        }
     </style>
 </head>
 <body>
@@ -43,20 +82,22 @@
             <button class="tab-btn active" id="btn-all" onclick="filterLeaderboard('all')">Total</button>
         </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Rank</th>
-                    <th>Username</th>
-                    <th>Ime</th>
-                    <th id="col-points">Poeni</th>
-                    <th id="col-credits">Krediti</th>
-                </tr>
-            </thead>
-            <tbody id="leaderboard-body">
-                <tr><td colspan="5">Loading rankings...</td></tr>
-            </tbody>
-        </table>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Username</th>
+                        <th>Ime</th>
+                        <th id="col-points">Poeni</th>
+                        <th id="col-credits">Krediti</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <tr><td colspan="5">Loading rankings...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
