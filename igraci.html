@@ -1,7 +1,186 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enfild Fantazi | Igraci</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 1000px; text-align: center; }
+        .home-btn { 
+            position: absolute; top: 20px; left: 20px; 
+            padding: 10px 15px; background: #e24a4a; color: white; 
+            text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 0.9rem;
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { 
+            background: #f8fafc; color: #64748b; padding: 15px; 
+            border-bottom: 2px solid #edf2f7; text-transform: uppercase; 
+            font-size: 0.85rem; cursor: pointer; user-select: none;
+            transition: background 0.2s;
+        }
+        th:hover { background: #edf2f7; color: #2d3748; }
+        th.sort-active { color: #4a90e2; border-bottom: 2px solid #4a90e2; }
+        td { padding: 15px; border-bottom: 1px solid #edf2f7; color: #2d3748; }
+        tr.player-row { cursor: pointer; transition: background 0.2s; }
+        tr.player-row:hover { background-color: #f1f5f9; }
+        
+        .name-col { text-align: left; font-weight: bold; cursor: default; }
+        .win-loss { font-weight: 600; color: #718096; }
+    </style>
+</head>
 <body>
-    <h1>Igraci</h1>
-    <a href="index.html">Back to Home</a>
+    <div class="container">
+        <a href="index.html" class="home-btn">Nazad</a>
+        <h1>Player Statistics</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th class="name-col">Name</th>
+                    <th id="th-cost" onclick="handleSort('cost')">Cost</th>
+                    <th id="th-gp" onclick="handleSort('gp')">GP</th>
+                    <th id="th-avg" onclick="handleSort('avg')">Avg Fpt</th>
+                    <th id="th-wl" onclick="handleSort('wl')">W-L</th>
+                </tr>
+            </thead>
+            <tbody id="players-body">
+                <tr><td colspan="5">Loading players...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
+        const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let playerData = [];
+        let currentSort = { column: 'cost', direction: 'desc' };
+
+        // Banker's Rounding for Cost Calculation
+        function calculateGain(points, cost) {
+            const raw = (points - cost) * 0.1;
+            const d = 1; const m = Math.pow(10, d);
+            const n = +(raw * m).toFixed(8);
+            const i = Math.floor(n), f = n - i;
+            const r = (f > 0.5 - 1e-8 && f < 0.5 + 1e-8) ? ((i % 2 === 0) ? i : i + 1) : Math.round(n);
+            let finalGain = r / m;
+            if (finalGain < 0 && (cost + finalGain) < 4.0) finalGain = -(cost - 4.0);
+            return finalGain;
+        }
+
+        async function loadPlayers() {
+            const { data: rawPlayers } = await mySupabase.from('players').select('*');
+            const { data: allScores } = await mySupabase.from('player_scores').select('*');
+            const { data: settings } = await mySupabase.from('settings').select('value').eq('key', 'current_round').single();
+            const manualRound = settings ? parseInt(settings.value) : 1;
+
+            // 1. Process Stats
+            playerData = rawPlayers.map(p => {
+                const scores = allScores.filter(s => s.player_id === p.id);
+                const gp = scores.length;
+                
+                if (gp === 0) return null; // We will filter these out later
+
+                // Calculate Current Dynamic Cost (using all scores up to manualRound)
+                let currentCost = p.cost;
+                const relevantScores = scores.filter(s => s.round_number < manualRound).sort((a,b) => a.round_number - b.round_number);
+                relevantScores.forEach(s => {
+                    currentCost = parseFloat((currentCost + calculateGain(s.points, currentCost)).toFixed(1));
+                });
+
+                const totalPts = scores.reduce((sum, s) => sum + s.points, 0);
+                const wins = scores.filter(s => s.result === 'win').length;
+                const losses = scores.filter(s => s.result === 'loss').length;
+
+                return {
+                    id: p.id,
+                    name: p.name,
+                    cost: currentCost,
+                    gp: gp,
+                    avg: totalPts / gp,
+                    wins: wins,
+                    losses: losses,
+                    wlText: `${wins}-${losses}`
+                };
+            }).filter(p => p !== null);
+
+            renderTable();
+        }
+
+        function handleSort(col) {
+            if (currentSort.column === col) {
+                // Toggle direction
+                currentSort.direction = currentSort.direction === 'desc' ? 'asc' : 'desc';
+            } else {
+                // New column selected, default to descending
+                currentSort.column = col;
+                currentSort.direction = 'desc';
+            }
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('players-body');
+            
+            // 1. Apply sorting logic
+            playerData.sort((a, b) => {
+                let valA, valB;
+                const dir = currentSort.direction === 'desc' ? 1 : -1;
+
+                if (currentSort.column === 'wl') {
+                    if (a.wins !== b.wins) return (b.wins - a.wins) * dir;
+                    return (a.losses - b.losses) * dir;
+                } else {
+                    valA = a[currentSort.column];
+                    valB = b[currentSort.column];
+                    return (valB - valA) * dir;
+                }
+            });
+
+            // 2. Update Header UI and Arrows
+            const columns = [
+                { id: 'th-cost', name: 'Cost' },
+                { id: 'th-gp', name: 'GP' },
+                { id: 'th-avg', name: 'Avg Pts' },
+                { id: 'th-wl', name: 'W-L' }
+            ];
+
+            columns.forEach(col => {
+                const th = document.getElementById(col.id);
+                th.classList.remove('sort-active');
+                
+                // Reset text to original name
+                th.innerText = col.name;
+
+                // If this is the active column, add the arrow
+                if (currentSort.column === (col.id.replace('th-', ''))) {
+                    th.classList.add('sort-active');
+                    const arrow = currentSort.direction === 'desc' ? ' ▼' : ' ▲';
+                    th.innerText += arrow;
+                }
+            });
+
+            // 3. Render Rows
+            tbody.innerHTML = '';
+            playerData.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = 'player-row';
+                tr.onclick = () => window.location.href = `player_details.html?id=${p.id}`;
+                
+                tr.innerHTML = `
+                    <td class="name-col">${p.name}</td>
+                    <td>${p.cost.toFixed(1)}</td>
+                    <td>${p.gp}</td>
+                    <td>${p.avg.toFixed(2)}</td>
+                    <td class="win-loss">${p.wlText}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        loadPlayers();
+    </script>
 </body>
 </html>
