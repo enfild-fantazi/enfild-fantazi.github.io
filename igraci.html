@@ -26,7 +26,7 @@
         th:hover { background: #edf2f7; color: #2d3748; }
         th.sort-active { color: #4a90e2; border-bottom: 2px solid #4a90e2; }
         td { padding: 15px; border-bottom: 1px solid #edf2f7; color: #2d3748; }
-        tr.player-row { cursor: pointer; transition: background 0.2s; }
+        tr.player-row { transition: background 0.2s; }
         tr.player-row:hover { background-color: #f1f5f9; }
         
         .name-col { text-align: left; font-weight: bold; cursor: default; }
@@ -285,7 +285,7 @@
             playerData.forEach(p => {
                 const tr = document.createElement('tr');
                 tr.className = 'player-row';
-                tr.onclick = () => window.location.href = `player_details.html?id=${p.id}`;
+                //tr.onclick = () => window.location.href = `player_details.html?id=${p.id}`;
                 
                 tr.innerHTML = `
                     <td class="name-col">${p.name}</td>
