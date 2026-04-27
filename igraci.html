@@ -85,13 +85,20 @@
         /* Column Width Allocations */
         .name-col { 
             text-align: left; 
-            width: 35%; /* Give the name the most space */
+            width: 32%; /* Give the name the most space */
         }
 
-        #th-cost, .cost-cell { width: 15%; }
-        #th-gp, .gp-cell     { width: 12%; }
-        #th-avg, .avg-cell   { width: 18%; }
+        #th-cost, .cost-cell { width: 16%; }
+        #th-gp, .gp-cell     { width: 13%; }
+        #th-avg, .avg-cell   { width: 19%; }
         #th-wl, .wl-cell     { width: 20%; }
+
+        /* Make the arrow smaller and red/blue to stand out without needing space */
+        .sort-arrow {
+            font-size: 0.7rem;
+            margin-left: 2px;
+            vertical-align: middle;
+        }
 
         /* 1. Remove the default body padding on mobile */
         @media (max-width: 600px) {
@@ -118,6 +125,11 @@
 
             h1 {
                 margin-top: 40px; /* Give space for the home button */
+            }
+
+            th, td { 
+                font-size: 0.72rem; /* Slightly smaller font for mobile */
+                padding: 10px 1px; 
             }
         }
     </style>
@@ -260,8 +272,11 @@
                 // If this is the active column, add the arrow
                 if (currentSort.column === (col.id.replace('th-', ''))) {
                     th.classList.add('sort-active');
-                    const arrow = currentSort.direction === 'desc' ? ' ▼' : ' ▲';
-                    th.innerText += arrow;
+                    // Create a span for the arrow so it can be styled independently
+                    const arrowSpan = document.createElement('span');
+                    arrowSpan.className = 'sort-arrow';
+                    arrowSpan.innerText = currentSort.direction === 'desc' ? '▼' : '▲';
+                    th.appendChild(arrowSpan);
                 }
             });
 
