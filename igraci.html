@@ -93,21 +93,32 @@
         #th-avg, .avg-cell   { width: 18%; }
         #th-wl, .wl-cell     { width: 20%; }
 
-        /* Mobile Specific Overrides */
+        /* 1. Remove the default body padding on mobile */
         @media (max-width: 600px) {
-            .container { 
-                padding: 15px 5px; /* Minimal padding around the white box */
-            }
-            
-            th, td { 
-                font-size: 0.75rem; /* Smaller font to fit more characters */
-                padding: 10px 2px; 
+            body {
+                padding: 0; /* Removes the gap between the screen edge and the box */
+                background: #fff; /* Optional: matches box color so it looks seamless */
             }
 
-            h1 { font-size: 1.2rem; }
+            .container {
+                padding: 15px 5px; 
+                border-radius: 0; /* Removes rounded corners so it sits flush */
+                box-shadow: none; /* Shadow isn't needed if it fills the screen */
+                width: 100vw;     /* Force exactly 100% of viewport width */
+                max-width: 100vw;
+                border: none;
+            }
 
-            /* If the name is still too long, let it take less space */
-            .name-col { width: 30%; }
+            .home-btn {
+                top: 10px;
+                left: 10px;
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+
+            h1 {
+                margin-top: 40px; /* Give space for the home button */
+            }
         }
     </style>
 </head>
@@ -119,8 +130,8 @@
             <table>
                 <thead>
                     <tr>
-                        <th class="name-col">Name</th>
-                        <th id="th-cost" onclick="handleSort('cost')">Cost</th>
+                        <th class="name-col">Ime</th>
+                        <th id="th-cost" onclick="handleSort('cost')">Cena</th>
                         <th id="th-gp" onclick="handleSort('gp')">GP</th>
                         <th id="th-avg" onclick="handleSort('avg')">Avg Fpt</th>
                         <th id="th-wl" onclick="handleSort('wl')">W-L</th>
@@ -233,7 +244,7 @@
 
             // 2. Update Header UI and Arrows
             const columns = [
-                { id: 'th-cost', name: 'Cost' },
+                { id: 'th-cost', name: 'Cena' },
                 { id: 'th-gp', name: 'GP' },
                 { id: 'th-avg', name: 'Avg Fpt' },
                 { id: 'th-wl', name: 'W-L' }
