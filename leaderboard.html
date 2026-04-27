@@ -36,43 +36,66 @@
         .gain-pos { color: #2ecc71; }
         .gain-neg { color: #e74c3c; }
 
-        /* 1. The Container: Stays centered and doesn't leak */
+        /* General Layout */
         .container { 
             background: white; 
-            padding: 40px; 
+            padding: 20px; /* Reduced from 40px */
             border-radius: 20px; 
             box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
             width: 100%; 
             max-width: 900px; 
-            box-sizing: border-box; 
+            box-sizing: border-box;
         }
 
-        /* 2. The Wrapper: Handles the mobile scroll without shrinking the PC view */
+        /* Remove the wrapper's scroll if you want it to fit, 
+        but keep it as a safety fallback */
         .table-wrapper {
             width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            margin-top: 20px;
+            overflow-x: hidden; /* Changed from auto to hidden to force fit */
         }
 
-        /* 3. The Table: Now it will take full width on PC again */
         table { 
             width: 100%; 
             border-collapse: collapse; 
-            min-width: 500px; /* Ensures it doesn't get TOO squished on tiny screens */
+            table-layout: fixed; /* Forces the browser to obey the widths we set */
         }
 
-        /* 4. Keep your nowrap rules so text doesn't break */
         th, td { 
-            padding: 15px; 
+            padding: 12px 4px; /* Very tight horizontal padding */
             border-bottom: 1px solid #edf2f7; 
-            white-space: nowrap; 
+            text-align: center;
+            font-size: 0.9rem;
+            overflow: hidden;
+            text-overflow: ellipsis; /* Adds '...' if text is too long */
+            white-space: nowrap;
         }
 
-        /* 5. Mobile specific tweaks */
+        /* Column Width Allocations */
+        .name-col { 
+            text-align: left; 
+            width: 35%; /* Give the name the most space */
+        }
+
+        #th-cost, .cost-cell { width: 15%; }
+        #th-gp, .gp-cell     { width: 12%; }
+        #th-avg, .avg-cell   { width: 18%; }
+        #th-wl, .wl-cell     { width: 20%; }
+
+        /* Mobile Specific Overrides */
         @media (max-width: 600px) {
-            .container { padding: 20px 15px; }
-            th, td { padding: 12px 8px; font-size: 0.85rem; }
+            .container { 
+                padding: 15px 5px; /* Minimal padding around the white box */
+            }
+            
+            th, td { 
+                font-size: 0.75rem; /* Smaller font to fit more characters */
+                padding: 10px 2px; 
+            }
+
+            h1 { font-size: 1.2rem; }
+
+            /* If the name is still too long, let it take less space */
+            .name-col { width: 30%; }
         }
     </style>
 </head>
