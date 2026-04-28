@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enfild Fantazi | Statistike igraca</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; width: 100%; max-width: 900px; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); box-sizing: border-box; }
+        
+        .back-btn { padding: 10px 15px; background: #e24a4a; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; }
+        
+        .header { text-align: center; margin-top: 20px; }
+        .stats-bar { display: flex; justify-content: space-around; background: #f8fafc; padding: 15px; border-radius: 12px; margin: 20px 0; flex-wrap: wrap; gap: 10px; }
+        .stat-item { text-align: center; min-width: 80px; }
+        .stat-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; display: block; }
+        .stat-val { font-size: 1.1rem; font-weight: bold; color: #2d3748; }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            overflow: visible; /* Ensure nothing is clipped */
+            width: 100%;
+            margin: 30px 0;
+            overflow-x: auto; /* Adds scroll if the season becomes 20+ rounds */
+        }
+
+        canvas {
+            min-width: 400px; /* Ensures bars don't get too thin on small phones */
+        }
+        
+        .table-wrapper { width: 100%; overflow-x: auto; margin-top: 30px; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th { background: #f8fafc; padding: 12px; font-size: 0.8rem; color: #64748b; border-bottom: 2px solid #edf2f7; text-align: center; }
+        td { padding: 12px; text-align: center; border-bottom: 1px solid #edf2f7; font-size: 0.9rem; }
+
+        @media (max-width: 600px) {
+            body { padding: 0; }
+            .container { border-radius: 0; padding: 15px; }
+            .stat-val { font-size: 0.9rem; }
+        }
+
+        /* Update your column widths in player_details.html style block */
+        th:nth-child(1), td:nth-child(1) { width: 12%; } /* Runda */
+        th:nth-child(2), td:nth-child(2) { width: 18%; } /* Cena */
+        th:nth-child(3), td:nth-child(3) { width: 15%; } /* Gain */
+        th:nth-child(4), td:nth-child(4) { width: 15%; } /* Poeni */
+        th:nth-child(5), td:nth-child(5) { width: 10%; } /* Rez (Small column) */
+        th:nth-child(6), td:nth-child(6) { width: 20%; } /* Usage */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="back-btn" onclick="window.history.back()">Nazad</button>
+        
+        <div class="header">
+            <h1 id="player-name">Loading...</h1>
+        </div>
+
+        <div class="stats-bar" id="top-stats">
+            </div>
+
+        <div class="chart-container">
+            <canvas id="scoreChart"></canvas>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Runda</th>
+                        <th>Cena</th>
+                        <th>Gain</th>
+                        <th>Poeni</th>
+                        <th>Rez</th> <th>POP %</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://kouvepburiaqlgmgdwla.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_To3N8ID0x-VKZjlgGon-1A_6wpFLmm4';
+        const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const playerId = urlParams.get('id');
+
+        function calculateGain(points, cost) {
+            const raw = (points - cost) * 0.1;
+            const d = 1; const m = Math.pow(10, d);
+            const n = +(raw * m).toFixed(8);
+            const i = Math.floor(n), f = n - i;
+            const r = (f > 0.5 - 1e-8 && f < 0.5 + 1e-8) ? ((i % 2 === 0) ? i : i + 1) : Math.round(n);
+            let finalGain = r / m;
+            if (finalGain < 0 && (cost + finalGain) < 4.0) finalGain = -(cost - 4.0);
+            return finalGain;
+        }
+
+        async function init() {
+            if (!playerId) return;
+
+            // Fetch necessary data
+            const { data: player } = await mySupabase.from('players').select('*').eq('id', playerId).single();
+            const { data: scores } = await mySupabase.from('player_scores').select('*').eq('player_id', playerId).order('round_number', { ascending: true });
+            const { data: pastTeams } = await mySupabase.from('past_teams').select('*');
+
+            document.getElementById('player-name').innerText = player.name;
+
+            let runningCost = player.cost;
+            let totalGain = 0;
+            const historyRows = [];
+
+            scores.forEach(s => {
+                // 1. Get teams for this round that are NOT empty
+                // We check if player_ids exists AND has a length greater than 0
+                const activeTeamsInThisRound = pastTeams.filter(t => 
+                    t.round_number === s.round_number && 
+                    t.player_ids && 
+                    t.player_ids.length > 0
+                );
+                
+                // 2. Count how many of those VALID teams had this player
+                const usersWithPlayer = activeTeamsInThisRound.filter(t => 
+                    t.player_ids.includes(parseInt(playerId))
+                ).length;
+                
+                // 3. Calculate usage based only on the non-empty teams
+                const totalValidTeams = activeTeamsInThisRound.length;
+                const usage = totalValidTeams > 0 ? (usersWithPlayer / totalValidTeams) * 100 : 0;
+
+                const gain = calculateGain(s.points, runningCost);
+                
+                historyRows.push({
+                    round: s.round_number,
+                    costBefore: runningCost,
+                    gain: gain,
+                    points: s.points,
+                    usage: usage,
+                    result: s.result || '?'
+                });
+
+                totalGain += gain;
+                runningCost = parseFloat((runningCost + gain).toFixed(1));
+            });
+
+            renderStats(runningCost, totalGain, historyRows);
+            renderChart(historyRows);
+            renderTable(historyRows);
+        }
+
+        function renderStats(currentCost, totalGain, rows) {
+            const lastRoundUsage = rows.length > 0 ? rows[rows.length-1].usage : 0;
+            const avgPts = rows.length > 0 ? rows.reduce((sum, r) => sum + r.points, 0) / rows.length : 0;
+            const wins = rows.filter(r => r.result === 'win').length;
+            const losses = rows.filter(r => r.result === 'loss').length;
+
+            document.getElementById('top-stats').innerHTML = `
+                <div class="stat-item"><span class="stat-label">Cena</span><span class="stat-val">${currentCost.toFixed(1)}</span></div>
+                <div class="stat-item"><span class="stat-label">Gain</span><span class="stat-val ${totalGain>=0?'gain-pos':'gain-neg'}">${totalGain.toFixed(1)}</span></div>
+                <div class="stat-item"><span class="stat-label">GP</span><span class="stat-val">${rows.length}</span></div>
+                <div class="stat-item"><span class="stat-label">Avg Fpt</span><span class="stat-val">${avgPts.toFixed(2)}</span></div>
+                <div class="stat-item"><span class="stat-label">W-L</span><span class="stat-val">${wins}-${losses}</span></div>
+                <div class="stat-item"><span class="stat-label">POP %</span><span class="stat-val">${lastRoundUsage.toFixed(1)}%</span></div>
+            `;
+        }
+
+        function renderChart(rows) {
+            const canvas = document.getElementById('scoreChart');
+            const ctx = canvas.getContext('2d');
+            
+            // Destroy existing chart instance if it exists to prevent overlap
+            const existingChart = Chart.getChart(canvas);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+
+            const dataValues = rows.map(r => r.points <= 0 ? 0.5 : r.points);
+            const backgroundColors = rows.map(r => {
+                if (r.points < 10) return '#e53e3e';
+                if (r.points < 20) return '#ecc94b';
+                if (r.points < 40) return '#48bb78';
+                return '#9f7aea';
+            });
+
+            // 1. Define the plugin object
+            const customLabelsPlugin = {
+                id: 'customLabels',
+                afterDraw: (chart) => {
+                    const { ctx, scales: { x } } = chart;
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    ctx.font = 'bold 11px Segoe UI, sans-serif';
+
+                    rows.forEach((r, index) => {
+                        const xPos = x.getPixelForTick(index);
+                        const yBase = x.bottom + 8; // Start just below the X-axis line
+
+                        // Line 1: Round (Gray)
+                        ctx.fillStyle = '#64748b';
+                        ctx.fillText(`R${r.round}`, xPos, yBase);
+
+                        // Line 2: Score (Dark)
+                        ctx.fillStyle = '#2d3748';
+                        ctx.fillText(parseFloat(r.points).toFixed(1), xPos, yBase + 15);
+
+                        // Line 3: W/L (Green or Red)
+                        const letter = r.result ? r.result[0].toUpperCase() : '-';
+                        ctx.fillStyle = letter === 'W' ? '#2ecc71' : '#e74c3c';
+                        ctx.fillText(letter, xPos, yBase + 30);
+                    });
+                    ctx.restore();
+                }
+            };
+
+            // 2. Create the chart and register the plugin
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: rows.map(r => r.round), // Dummy labels for axis sizing
+                    datasets: [{
+                        data: dataValues,
+                        backgroundColor: backgroundColors,
+                        borderRadius: 5,
+                        barThickness: 28,
+                        maxBarThickness: 30
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            bottom: 50 // Essential: creates space for our 3 lines of text
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `Poeni: ${rows[context.dataIndex].points.toFixed(1)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: '#edf2f7' } 
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { display: false } // Hide default labels
+                        }
+                    }
+                },
+                plugins: [customLabelsPlugin] // Register the plugin here
+            });
+        }
+
+        function renderTable(rows) {
+            const tbody = document.getElementById('history-body');
+            tbody.innerHTML = ''; // Clear loading state
+
+            // .slice().reverse() ensures Round 2 is above Round 1
+            rows.slice().reverse().forEach(r => {
+                const tr = document.createElement('tr');
+                
+                // Determine the letter and color
+                const resultLetter = r.result ? r.result[0].toUpperCase() : '-';
+                const resultColor = resultLetter === 'W' ? '#2ecc71' : '#e74c3c';
+
+                tr.innerHTML = `
+                    <td>${r.round}</td>
+                    <td>${r.costBefore.toFixed(1)}</td>
+                    <td style="color:${r.gain >= 0 ? '#2ecc71' : '#e74c3c'}">
+                        ${r.gain > 0 ? '+' : ''}${r.gain.toFixed(1)}
+                    </td>
+                    <td>${r.points.toFixed(1)}</td>
+                    <td style="font-weight: bold; color: ${resultColor}">${resultLetter}</td>
+                    <td>${r.usage.toFixed(1)}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
